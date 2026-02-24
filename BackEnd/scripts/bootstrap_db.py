@@ -26,6 +26,10 @@ PLATFORM_PERMISSIONS = [
     "platform:settings:write",
     "platform:support:read",
     "platform:support:write",
+    "platform:invoices:read",
+    "platform:invoices:write",
+    "platform:audit-logs:read",
+    "platform:reports:read",
 ]
 
 HOTEL_PERMISSIONS = [
@@ -49,6 +53,11 @@ HOTEL_PERMISSIONS = [
     "hotel:checkin:write",
     "hotel:payments:read",
     "hotel:payments:write",
+    "hotel:incidents:read",
+    "hotel:incidents:write",
+    "hotel:reports:read",
+    "hotel:settings:read",
+    "hotel:settings:write",
 ]
 
 

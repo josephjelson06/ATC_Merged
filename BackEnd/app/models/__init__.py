@@ -3,7 +3,7 @@ from .tenant import Tenant, TenantRole, TenantUser
 from .permissions import Permission
 from .mappings import platform_role_permissions, tenant_role_permissions
 from .billing import Plan, Subscription
-from .support import SupportTicket
+from .support import SupportTicket, SupportMessage
 from .hotel_config import HotelConfig
 from .room_type import RoomType
 from .room import Room
@@ -12,3 +12,6 @@ from .booking import Booking
 from .kiosk import Kiosk
 from .check_in import CheckIn
 from .payment import Payment
+from .incident import Incident
+from .invoice import Invoice
+from .audit_log import AuditLog

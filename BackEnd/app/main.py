@@ -17,6 +17,11 @@ from app.routers import (
     checkins,
     payments,
     kiosks,
+    incidents,
+    invoices,
+    audit_logs,
+    reports,
+    hotel_settings,
 )
 
 app = FastAPI(
@@ -61,6 +66,11 @@ app.include_router(checkins.router)
 app.include_router(payments.router)
 app.include_router(kiosks.router)
 app.include_router(kiosks.kiosk_public_router)
+app.include_router(incidents.router)
+app.include_router(invoices.router)
+app.include_router(audit_logs.router)
+app.include_router(reports.router)
+app.include_router(hotel_settings.router)
 
 
 @app.get("/")

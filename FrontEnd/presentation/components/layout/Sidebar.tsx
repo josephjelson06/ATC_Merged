@@ -194,6 +194,15 @@ const Sidebar: React.FC<SidebarProps> = ({
                           collapsed={isCollapsed}
                         />
                       )}
+                      {hasPerm("hotel:incidents:read") && (
+                        <SidebarItem
+                          icon={LifeBuoy}
+                          label="Incidents"
+                          active={currentRoute === "incidents"}
+                          onClick={() => onNavigate("incidents")}
+                          collapsed={isCollapsed}
+                        />
+                      )}
                       {hasPerm("hotel:guests:read") && (
                         <SidebarItem
                           icon={Users}
@@ -225,6 +234,33 @@ const Sidebar: React.FC<SidebarProps> = ({
                         onClick={() => onNavigate("billing")}
                         collapsed={isCollapsed}
                       />
+                      {hasPerm("hotel:rooms:read") && (
+                        <SidebarItem
+                          icon={CreditCard}
+                          label="Rates"
+                          active={currentRoute === "rates"}
+                          onClick={() => onNavigate("rates")}
+                          collapsed={isCollapsed}
+                        />
+                      )}
+                      {hasPerm("hotel:reports:read") && (
+                        <SidebarItem
+                          icon={FileText}
+                          label="Reports"
+                          active={currentRoute === "hotel-reports"}
+                          onClick={() => onNavigate("hotel-reports")}
+                          collapsed={isCollapsed}
+                        />
+                      )}
+                      {hasPerm("hotel:settings:read") && (
+                        <SidebarItem
+                          icon={Shield}
+                          label="Settings"
+                          active={currentRoute === "hotel-settings"}
+                          onClick={() => onNavigate("hotel-settings")}
+                          collapsed={isCollapsed}
+                        />
+                      )}
                     </SidebarSection>
 
                     <SidebarSection title="Support" collapsed={isCollapsed}>
@@ -281,6 +317,15 @@ const Sidebar: React.FC<SidebarProps> = ({
                         onClick={() => onNavigate("kiosks")}
                         collapsed={isCollapsed}
                       />
+                      {hasPerm("platform:reports:read") && (
+                        <SidebarItem
+                          icon={FileText}
+                          label="Reports"
+                          active={currentRoute === "reports"}
+                          onClick={() => onNavigate("reports")}
+                          collapsed={isCollapsed}
+                        />
+                      )}
                     </SidebarSection>
 
                     <SidebarSection title="Finance" collapsed={isCollapsed}>
@@ -298,6 +343,15 @@ const Sidebar: React.FC<SidebarProps> = ({
                         onClick={() => onNavigate("subscriptions")}
                         collapsed={isCollapsed}
                       />
+                      {hasPerm("platform:invoices:read") && (
+                        <SidebarItem
+                          icon={CreditCard}
+                          label="Invoices"
+                          active={currentRoute === "invoices"}
+                          onClick={() => onNavigate("invoices")}
+                          collapsed={isCollapsed}
+                        />
+                      )}
                     </SidebarSection>
 
                     <SidebarSection title="Support" collapsed={isCollapsed}>
@@ -308,9 +362,25 @@ const Sidebar: React.FC<SidebarProps> = ({
                         onClick={() => onNavigate("helpdesk")}
                         collapsed={isCollapsed}
                       />
+                      {hasPerm("platform:audit-logs:read") && (
+                        <SidebarItem
+                          icon={Shield}
+                          label="Audit Logs"
+                          active={currentRoute === "audit-logs"}
+                          onClick={() => onNavigate("audit-logs")}
+                          collapsed={isCollapsed}
+                        />
+                      )}
                     </SidebarSection>
 
                     <SidebarSection title="Settings" collapsed={isCollapsed}>
+                      <SidebarItem
+                        icon={Shield}
+                        label="Platform Settings"
+                        active={currentRoute === "settings"}
+                        onClick={() => onNavigate("settings")}
+                        collapsed={isCollapsed}
+                      />
                       <SidebarItem
                         icon={Shield}
                         label="Platform Users"

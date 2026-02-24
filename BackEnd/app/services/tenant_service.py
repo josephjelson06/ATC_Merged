@@ -9,6 +9,9 @@ from app.models.tenant import Tenant
 from app.models.tenant import TenantRole, TenantUser
 from app.models.billing import Subscription
 from app.models.support import SupportTicket
+from app.models.incident import Incident
+from app.models.invoice import Invoice
+from app.models.audit_log import AuditLog
 from app.models.mappings import tenant_role_permissions
 from app.schemas.tenant import TenantCreate, TenantRead
 
@@ -100,6 +103,15 @@ class TenantService:
 
         self.db.query(SupportTicket).filter(SupportTicket.tenant_id == tenant_id).delete(
             synchronize_session=False
+        )
+        self.db.query(Incident).filter(Incident.tenant_id == tenant_id).delete(
+            synchronize_session=False
+        )
+        self.db.query(Invoice).filter(Invoice.tenant_id == tenant_id).delete(
+            synchronize_session=False
+        )
+        self.db.query(AuditLog).filter(AuditLog.tenant_id == tenant_id).update(
+            {"tenant_id": None}, synchronize_session=False
         )
         self.db.query(Subscription).filter(Subscription.tenant_id == tenant_id).delete(
             synchronize_session=False

@@ -31,6 +31,9 @@ import app.models.booking  # noqa: F401
 import app.models.kiosk  # noqa: F401
 import app.models.check_in  # noqa: F401
 import app.models.payment  # noqa: F401
+import app.models.incident  # noqa: F401
+import app.models.invoice  # noqa: F401
+import app.models.audit_log  # noqa: F401
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

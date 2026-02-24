@@ -1,5 +1,5 @@
-import { notFound } from "next/navigation";
+import PlatformSettings from "@/presentation/pages/super/PlatformSettings";
 
-export default function Page() {
-  notFound();
+export default function SuperSettingsPage() {
+  return <PlatformSettings />;
 }

@@ -1,5 +1,5 @@
-import { notFound } from "next/navigation";
+import HotelReports from "@/presentation/pages/hotel/HotelReports";
 
-export default function Page() {
-  notFound();
+export default function HotelReportsPage() {
+  return <HotelReports />;
 }

@@ -1,5 +1,5 @@
-import { notFound } from "next/navigation";
+import AuditLogs from "@/presentation/pages/super/AuditLogs";
 
-export default function Page() {
-  notFound();
+export default function SuperAuditLogsPage() {
+  return <AuditLogs />;
 }

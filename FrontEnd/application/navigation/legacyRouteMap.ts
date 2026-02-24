@@ -17,6 +17,10 @@ export function pathnameToLegacyRoute(pathname: string): string {
       case "kiosks":    return id ? "kiosk-details" : "kiosks";
       case "plans":     return "plans";
       case "subscriptions": return "subscriptions";
+      case "invoices":  return "invoices";
+      case "audit-logs": return "audit-logs";
+      case "reports":   return "reports";
+      case "settings":  return "settings";
       case "users":     return "users-mgmt";
       case "helpdesk":  return "helpdesk";
       case "profile":   return "profile";
@@ -30,6 +34,10 @@ export function pathnameToLegacyRoute(pathname: string): string {
       case "rooms":     return "rooms";
       case "bookings":  return "bookings";
       case "guests":    return "guests";
+      case "incidents": return "incidents";
+      case "rates":     return "rates";
+      case "reports":   return "hotel-reports";
+      case "settings":  return "hotel-settings";
       case "users":     return "user-mgmt";
       case "roles":     return "role-mgmt";
       case "billing":   return "billing";
@@ -52,6 +60,10 @@ export function legacyRouteToPath(route: string, viewMode: ViewMode): string {
       case "kiosk-details":  return "/super/kiosks/1"; // Placeholder ID
       case "plans":          return "/super/plans";
       case "subscriptions":  return "/super/subscriptions";
+      case "invoices":       return "/super/invoices";
+      case "audit-logs":     return "/super/audit-logs";
+      case "reports":        return "/super/reports";
+      case "settings":       return "/super/settings";
       case "users-mgmt":     return "/super/users";
       case "helpdesk":       return "/super/helpdesk";
       case "profile":        return "/super/profile";
@@ -65,6 +77,10 @@ export function legacyRouteToPath(route: string, viewMode: ViewMode): string {
     case "rooms":           return "/hotel/rooms";
     case "bookings":        return "/hotel/bookings";
     case "guests":          return "/hotel/guests";
+    case "incidents":       return "/hotel/incidents";
+    case "rates":           return "/hotel/rates";
+    case "hotel-reports":   return "/hotel/reports";
+    case "hotel-settings":  return "/hotel/settings";
     case "user-mgmt":       return "/hotel/users";
     case "role-mgmt":       return "/hotel/roles";
     case "billing":         return "/hotel/billing";

@@ -47,3 +47,4 @@ class Subscription(Base):
     status: Mapped[str]
 
     tenant = relationship("Tenant", back_populates="subscriptions")
+    invoices = relationship("Invoice", back_populates="subscription")

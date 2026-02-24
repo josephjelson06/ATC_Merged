@@ -34,3 +34,4 @@ class Room(Base):
     tenant = relationship("Tenant", back_populates="rooms")
     room_type = relationship("RoomType", back_populates="rooms")
     check_ins = relationship("CheckIn", back_populates="room")
+    incidents = relationship("Incident", back_populates="room")

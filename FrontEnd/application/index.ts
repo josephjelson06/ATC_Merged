@@ -7,3 +7,8 @@ export { usePlans } from './hooks/usePlans';
 export { useAuth } from './hooks/useAuth';
 export { useHotelStaff } from './hooks/useHotelStaff';
 export { useSubscriptions } from './hooks/useSubscriptions';
+export { useIncidents } from './hooks/useIncidents';
+export { useReports } from './hooks/useReports';
+export { useAuditLogs } from './hooks/useAuditLogs';
+export { useInvoices } from './hooks/useInvoices';
+export { useSettings } from './hooks/useSettings';

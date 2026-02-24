@@ -15,6 +15,11 @@ from . import (
     checkins,
     payments,
     kiosks,
+    incidents,
+    invoices,
+    audit_logs,
+    reports,
+    hotel_settings,
 )
 
 __all__ = [
@@ -34,4 +39,9 @@ __all__ = [
     "checkins",
     "payments",
     "kiosks",
+    "incidents",
+    "invoices",
+    "audit_logs",
+    "reports",
+    "hotel_settings",
 ]

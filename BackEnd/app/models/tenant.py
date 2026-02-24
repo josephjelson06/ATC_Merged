@@ -63,6 +63,13 @@ class Tenant(Base):
     payments = relationship(
         "Payment", back_populates="tenant", cascade="all, delete-orphan"
     )
+    incidents = relationship(
+        "Incident", back_populates="tenant", cascade="all, delete-orphan"
+    )
+    invoices = relationship(
+        "Invoice", back_populates="tenant", cascade="all, delete-orphan"
+    )
+    audit_logs = relationship("AuditLog", back_populates="tenant")
 
     owner = relationship("TenantUser", foreign_keys=[owner_user_id])
 

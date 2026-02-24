@@ -29,3 +29,4 @@ class Kiosk(Base):
 
     tenant = relationship("Tenant", back_populates="kiosks")
     check_ins = relationship("CheckIn", back_populates="kiosk")
+    incidents = relationship("Incident", back_populates="kiosk")

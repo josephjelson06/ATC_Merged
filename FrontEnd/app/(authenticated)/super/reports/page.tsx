@@ -1,5 +1,5 @@
-import { notFound } from "next/navigation";
+import Reports from "@/presentation/pages/super/Reports";
 
-export default function Page() {
-  notFound();
+export default function SuperReportsPage() {
+  return <Reports />;
 }
