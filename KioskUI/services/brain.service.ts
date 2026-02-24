@@ -10,26 +10,13 @@
  */
 
 import { AgentAdapter } from "../agent/adapter";
-
-const BRAIN_BASE_URL = import.meta.env.VITE_BRAIN_BASE_URL || "http://localhost:3002";
-const BRAIN_URL = import.meta.env.VITE_BRAIN_URL || `${BRAIN_BASE_URL}/api/chat`;
-const BOOKING_BRAIN_URL =
-    import.meta.env.VITE_BOOKING_BRAIN_URL || `${BRAIN_BASE_URL}/api/chat/booking`;
+import { buildTenantApiUrl, getTenantHeaders } from "./tenantContext";
+import type { BookingChatResponseDTO, ChatResponseDTO } from "@contracts/api.contract";
 
 // States that use the booking endpoint
 const BOOKING_STATES = ["BOOKING_COLLECT", "BOOKING_SUMMARY", "ROOM_SELECT"];
 
-export interface BrainResponse {
-    speech: string;
-    intent: string;
-    confidence: number;
-    // Booking-specific fields (only from booking endpoint)
-    extractedSlots?: Record<string, any>;
-    accumulatedSlots?: Record<string, any>;
-    missingSlots?: string[];
-    nextSlotToAsk?: string | null;
-    isComplete?: boolean;
-}
+export type BrainResponse = ChatResponseDTO & Partial<BookingChatResponseDTO>;
 
 // Subscribers who want to know about brain responses (e.g., TTS, UI)
 type BrainResponseListener = (response: BrainResponse) => void;
@@ -81,14 +68,14 @@ export async function sendToBrain(
 
     // Decide which endpoint based on current state
     const isBookingMode = BOOKING_STATES.includes(currentState);
-    const url = isBookingMode ? BOOKING_BRAIN_URL : BRAIN_URL;
+    const url = isBookingMode ? buildTenantApiUrl("chat/booking") : buildTenantApiUrl("chat");
 
     console.log(`[BrainService] Sending to ${isBookingMode ? "Booking" : "General"} Brain: "${transcript}" (State: ${currentState})`);
 
     try {
         const response = await fetch(url, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", ...getTenantHeaders() },
             body: JSON.stringify({
                 transcript,
                 currentState,

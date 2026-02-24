@@ -6,10 +6,8 @@ import { SpeechOutputController } from "../voice/SpeechOutputController";
 import { TTSController } from "../voice/TTSController";
 import { StateMachine } from "../state/uiState.machine";
 import { UIState } from "@contracts/backend.contract";
-
-const BRAIN_URL =
-    import.meta.env.VITE_BRAIN_URL ||
-    `${import.meta.env.VITE_BRAIN_BASE_URL || 'http://localhost:3002'}/api/chat`;
+import { buildTenantApiUrl, getTenantHeaders } from "../services/tenantContext";
+import { getTenant } from "../services/tenantContext";
 
 /**
  * AgentAdapter (Singleton) - Phase 9.4: TTS UX, Barge-In & Audio Authority
@@ -35,6 +33,8 @@ const VOICE_AUTHORITY_MATRIX: Record<UiState, boolean> = {
     MANUAL_MENU: true,
     SCAN_ID: false,     // Security - no voice during ID scan
     ROOM_SELECT: true,
+    BOOKING_COLLECT: true,
+    BOOKING_SUMMARY: true,
     PAYMENT: false,     // Security - no voice during payment
     KEY_DISPENSING: false,
     COMPLETE: false,
@@ -55,6 +55,7 @@ type Sentiment = 'POSITIVE' | 'NEUTRAL' | 'FRUSTRATED' | 'URGENT';
 
 class AgentAdapterService {
     private state: UiState = "IDLE";
+    private viewData: Record<string, any> = {};
     private listeners: ((state: UiState, data?: any) => void)[] = [];
 
     // Intent de-duplication guard (Phase 8.4)
@@ -74,7 +75,9 @@ class AgentAdapterService {
 
     // Phase 9.4: Confidence thresholds for LLM safety gating
     private readonly CONFIDENCE_THRESHOLD_HIGH = 0.85;
-    private readonly LLM_API_URL = BRAIN_URL;
+    private inactivityTimer: ReturnType<typeof setTimeout> | null = null;
+    private readonly INACTIVITY_TIMEOUT_MS = 2 * 60 * 1000;
+    private pendingCancelConfirmation = false;
 
     constructor() {
         console.log("[AgentAdapter] Initialized (Phase 9.4 - LLM Confidence Gating)");
@@ -353,6 +356,7 @@ class AgentAdapterService {
             case "VOICE_TRANSCRIPT_PARTIAL":
                 // Just for live display, no action needed
                 // Phase 12: Emit Partial Transcript
+                this.resetInactivityTimer();
                 this.emitTranscript(event.transcript, false, 'user');
                 break;
         }
@@ -389,18 +393,59 @@ class AgentAdapterService {
 
     // HELPER: Map LLM "fuzzy" intents to Strict Machine Events
     private mapIntentToEvent(llmIntent: string): string {
-        const upper = llmIntent.toUpperCase();
+        const upper = (llmIntent || '').toUpperCase().trim();
 
-        // Map common LLM outputs to our strict Event names
+        // Explicit LLM intent enum mapping (backend/contracts.ts)
+        switch (upper) {
+            case 'CHECK_IN':
+                return 'CHECK_IN_SELECTED';
+            case 'BOOK_ROOM':
+                return 'BOOK_ROOM_SELECTED';
+            case 'RECOMMEND_ROOM':
+                // Move forward from ROOM_SELECT to booking flow.
+                // Room data selection remains a separate concern.
+                return 'ROOM_SELECTED';
+            case 'HELP':
+                return 'HELP_SELECTED';
+            case 'SCAN_ID':
+                return 'SCAN_COMPLETED';
+            case 'PAYMENT':
+                return 'CONFIRM_PAYMENT';
+            case 'WELCOME':
+                return 'CANCEL_REQUESTED';
+            case 'IDLE':
+                return 'RESET';
+            case 'SELECT_ROOM':
+                return this.state === 'ROOM_SELECT' ? 'ROOM_SELECTED' : 'SELECT_ROOM';
+            case 'PROVIDE_GUESTS':
+            case 'PROVIDE_DATES':
+            case 'PROVIDE_NAME':
+            case 'CONFIRM_BOOKING':
+            case 'MODIFY_BOOKING':
+            case 'CANCEL_BOOKING':
+            case 'ASK_ROOM_DETAIL':
+            case 'ASK_PRICE':
+                return upper;
+            case 'REPEAT':
+            case 'GENERAL_QUERY':
+            case 'UNKNOWN':
+                return 'GENERAL_QUERY';
+        }
+
+        // Fuzzy fallback mapping
         if (upper.includes('CHECK_IN') || upper.includes('RESERVATION')) return 'CHECK_IN_SELECTED';
         if (upper.includes('BOOK') || upper.includes('NEW_RESERVATION')) return 'BOOK_ROOM_SELECTED';
         if (upper.includes('HELP') || upper.includes('SUPPORT')) return 'HELP_SELECTED';
         if (upper.includes('SCAN')) return 'SCAN_COMPLETED';
+        if (upper.includes('PAYMENT') || upper.includes('PAY')) return 'CONFIRM_PAYMENT';
+        if (upper.includes('WELCOME') || upper.includes('HOME') || upper.includes('START')) return 'CANCEL_REQUESTED';
+        if (upper.includes('CANCEL')) return 'CANCEL_BOOKING';
+        if (upper.includes('MODIFY') || upper.includes('CHANGE')) return 'MODIFY_BOOKING';
+        if (upper.includes('DATE')) return 'PROVIDE_DATES';
+        if (upper.includes('GUEST')) return 'PROVIDE_GUESTS';
+        if (upper.includes('NAME')) return 'PROVIDE_NAME';
 
-        // Default: Pass through if it matches exactly, else treat as General Query
-        // (We can assume if it's not mapped, it might be a direct match like 'RESET' or 'GENERAL_QUERY')
-        return upper === 'GENERAL_QUERY' ? 'GENERAL_QUERY' :
-            (Object.keys(VOICE_COMMAND_MAP[this.state] || {}).includes(upper) ? upper : 'GENERAL_QUERY');
+        return 'GENERAL_QUERY';
     }
 
     /**
@@ -411,10 +456,31 @@ class AgentAdapterService {
         if (!transcript || transcript.trim().length < 2) return;
 
         try {
+            if (this.pendingCancelConfirmation) {
+                if (this.isAffirmative(transcript)) {
+                    this.pendingCancelConfirmation = false;
+                    this.speak("Okay, cancelling the booking and returning to the main screen.");
+                    this.transitionTo("WELCOME", "CANCEL_REQUESTED", { transcript });
+                    return;
+                }
+                if (this.isNegative(transcript)) {
+                    this.pendingCancelConfirmation = false;
+                    this.speak("Okay, continuing your booking.");
+                    return;
+                }
+                this.speak("Please say yes to confirm cancellation, or no to continue.");
+                return;
+            }
+
+            const bookingStates: UiState[] = ['ROOM_SELECT', 'BOOKING_COLLECT', 'BOOKING_SUMMARY'];
+            const targetUrl = bookingStates.includes(this.state)
+                ? buildTenantApiUrl("chat/booking")
+                : buildTenantApiUrl("chat");
+
             // 1. Call LLM Brain with session ID for memory
-            const response = await fetch(this.LLM_API_URL, {
+            const response = await fetch(targetUrl, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 'Content-Type': 'application/json', ...getTenantHeaders() },
                 body: JSON.stringify({
                     transcript,
                     currentState: this.state,
@@ -431,7 +497,20 @@ class AgentAdapterService {
 
             // 2. Map Fuzzy Intent -> Strict Event
             const rawIntent = decision.intent;
-            const strictEvent = this.mapIntentToEvent(rawIntent);
+            let strictEvent = this.mapIntentToEvent(rawIntent);
+            const inferredRoom = this.state === "ROOM_SELECT" ? this.inferRoomFromTranscript(transcript) : null;
+            if (this.state === "ROOM_SELECT" && inferredRoom) {
+                strictEvent = "ROOM_SELECTED";
+            }
+            if (strictEvent === "CANCEL_BOOKING" || strictEvent === "CANCEL_REQUESTED") {
+                this.pendingCancelConfirmation = true;
+                this.speak("Do you want to cancel this booking? Please say yes or no.");
+                return;
+            }
+            if (this.state === "ROOM_SELECT" && strictEvent === "ROOM_SELECTED" && !inferredRoom) {
+                // Prevent false-positive jumps when no actual room was identified.
+                strictEvent = "GENERAL_QUERY";
+            }
 
             console.log(`[Agent] Mapping Intent: ${rawIntent} -> ${strictEvent}`);
 
@@ -445,7 +524,15 @@ class AgentAdapterService {
             // dispatch() respects the State Machine and Voice Authority without hard-stopping audio.
             if (strictEvent !== 'GENERAL_QUERY') {
                 // Convert string to Intent type if possible, or cast (User provided string return type)
-                this.dispatch(strictEvent as Intent, { transcript, llmIntent: rawIntent });
+                this.dispatch(strictEvent as Intent, {
+                    transcript,
+                    llmIntent: rawIntent,
+                    room: inferredRoom,
+                    slots: decision.accumulatedSlots || decision.extractedSlots,
+                    missingSlots: decision.missingSlots,
+                    nextSlotToAsk: decision.nextSlotToAsk,
+                    isComplete: decision.isComplete
+                });
             }
 
         } catch (error) {
@@ -491,6 +578,7 @@ class AgentAdapterService {
         // Emit current state immediately to new subscriber
         const metadata = StateMachine.getMetadata(this.state as UIState);
         const fullData = {
+            ...this.viewData,
             metadata: {
                 ...metadata,
                 listening: this.hasVoiceAuthority() // Approximate check
@@ -503,6 +591,142 @@ class AgentAdapterService {
         };
     }
 
+    private getProgress(state: UiState) {
+        const steps = ['ID Scan', 'Room', 'Payment', 'Key'];
+        switch (state) {
+            case 'SCAN_ID': return { currentStep: 1, totalSteps: 4, steps };
+            case 'ROOM_SELECT': return { currentStep: 2, totalSteps: 4, steps };
+            case 'PAYMENT': return { currentStep: 3, totalSteps: 4, steps };
+            case 'COMPLETE': return { currentStep: 4, totalSteps: 4, steps };
+            default: return this.viewData.progress ?? null;
+        }
+    }
+
+    private applyPayloadData(intent: string, payload?: any, nextState?: UiState): void {
+        const merged: Record<string, any> = { ...this.viewData };
+
+        if (payload?.room) {
+            merged.selectedRoom = payload.room;
+        }
+
+        if (Array.isArray(payload?.rooms)) {
+            merged.rooms = payload.rooms;
+        }
+
+        if (payload?.slots) {
+            merged.bookingSlots = { ...(merged.bookingSlots || {}), ...payload.slots };
+        }
+
+        if (payload?.missingSlots) {
+            merged.missingSlots = payload.missingSlots;
+        }
+
+        if (payload?.nextSlotToAsk !== undefined) {
+            merged.nextSlotToAsk = payload.nextSlotToAsk;
+        }
+
+        if (intent === 'ROOM_SELECTED' && !merged.selectedRoom && Array.isArray(merged.rooms)) {
+            const text = String(payload?.transcript || '').toLowerCase();
+            merged.selectedRoom = merged.rooms.find((r: any) => String(r.name || '').toLowerCase().includes(text))
+                || merged.rooms.find((r: any) => text.includes('deluxe') && String(r.name || '').toLowerCase().includes('deluxe'))
+                || null;
+        }
+
+        const progressState = nextState || this.state;
+        merged.progress = this.getProgress(progressState);
+        this.viewData = merged;
+    }
+
+    private resetInactivityTimer(): void {
+        if (this.inactivityTimer) {
+            clearTimeout(this.inactivityTimer);
+            this.inactivityTimer = null;
+        }
+
+        if (this.state === "IDLE") return;
+
+        this.inactivityTimer = setTimeout(() => {
+            console.warn("[AgentAdapter] Inactivity timeout reached. Returning to IDLE.");
+            this.hardStopAll();
+            this.state = "IDLE";
+            this.notifyListeners();
+        }, this.INACTIVITY_TIMEOUT_MS);
+    }
+
+    private inferRoomFromTranscript(transcript: string): any | null {
+        const t = (transcript || "").toLowerCase();
+        if (!t) return null;
+
+        const rooms = Array.isArray(this.viewData.rooms) ? this.viewData.rooms : [];
+        if (rooms.length === 0) return null;
+        const byName = rooms.find((r: any) => t.includes(String(r.name).toLowerCase()));
+        if (byName) return byName;
+
+        if (t.includes("deluxe") || t.includes("ocean")) {
+            return rooms.find((r: any) => String(r.name).toLowerCase().includes("deluxe")) || null;
+        }
+        if (t.includes("executive") || t.includes("suite")) {
+            return rooms.find((r: any) => String(r.name).toLowerCase().includes("executive")) || null;
+        }
+        if (t.includes("standard") || t.includes("queen")) {
+            return rooms.find((r: any) => String(r.name).toLowerCase().includes("standard")) || null;
+        }
+
+        return null;
+    }
+
+    private isAffirmative(text: string): boolean {
+        const t = (text || "").toLowerCase();
+        return /\b(yes|yeah|yep|confirm|sure|ok|okay|proceed|cancel it|do it)\b/.test(t);
+    }
+
+    private isNegative(text: string): boolean {
+        const t = (text || "").toLowerCase();
+        return /\b(no|nope|dont|don't|not now|continue|resume|go on)\b/.test(t);
+    }
+
+    private resolveNextStateFromIntent(currentState: UiState, intent: string): UiState {
+        // ROOM_SELECT must not auto-advance on generic queries/amenity questions.
+        if (currentState === "ROOM_SELECT") {
+            if (intent === "ASK_ROOM_DETAIL" || intent === "ASK_PRICE" || intent === "GENERAL_QUERY" || intent === "HELP_SELECTED") {
+                return "ROOM_SELECT";
+            }
+            if (intent === "PROVIDE_GUESTS" || intent === "PROVIDE_DATES" || intent === "PROVIDE_NAME" || intent === "CONFIRM_BOOKING" || intent === "MODIFY_BOOKING") {
+                return "ROOM_SELECT";
+            }
+        }
+
+        // If booking-style intents arrive while still on ROOM_SELECT, bootstrap into BOOKING_COLLECT.
+        const bookingIntents = new Set([
+            "PROVIDE_GUESTS",
+            "PROVIDE_DATES",
+            "PROVIDE_NAME",
+            "CONFIRM_BOOKING",
+            "MODIFY_BOOKING",
+            "CANCEL_BOOKING",
+            "ASK_ROOM_DETAIL",
+            "ASK_PRICE",
+            "GENERAL_QUERY",
+            "HELP_SELECTED",
+        ]);
+
+        if (currentState === "ROOM_SELECT" && bookingIntents.has(intent)) {
+            // Strict page-by-page progression: booking-related intent from ROOM_SELECT
+            // enters BOOKING_COLLECT first. No direct jump.
+            return "ROOM_SELECT";
+        }
+
+        if (intent === 'BACK_REQUESTED' || intent === 'CANCEL_REQUESTED') {
+            return StateMachine.getPreviousState(currentState as UIState) as UiState;
+        }
+
+        if (intent === 'RESET') {
+            return 'IDLE';
+        }
+
+        return StateMachine.transition(currentState as UIState, intent as any) as UiState;
+    }
+
     /**
      * Phase 11.5: Touch Authority Override
      * Handle inputs from UI Buttons (Touch) or Internal Events.
@@ -510,6 +734,7 @@ class AgentAdapterService {
      */
     public handleIntent(intent: string, payload?: any) {
         console.log(`[AgentAdapter] 👆 Handle Intent (Touch Authority): ${intent}`, payload || '');
+        this.resetInactivityTimer();
 
         // 1. TOUCH AUTHORITY CHECK 🛡️
         const INTERRUPT_INTENTS = [
@@ -537,20 +762,14 @@ class AgentAdapterService {
         }
 
         // 2. CALCULATE TRANSITION (Centralized State Machine)
-        let nextState: UiState = this.state;
-
-        if (intent === 'BACK_REQUESTED' || intent === 'CANCEL_REQUESTED') {
-            nextState = StateMachine.getPreviousState(this.state as UIState) as UiState;
-        } else if (intent === 'RESET') {
-            nextState = 'IDLE';
-        } else {
-            nextState = StateMachine.transition(this.state as UIState, intent) as UiState;
-        }
+        const nextState = this.resolveNextStateFromIntent(this.state, intent);
 
         // 3. EXECUTE
         if (nextState !== this.state) {
-            this.transitionTo(nextState);
+            this.transitionTo(nextState, intent, payload);
         } else {
+            this.applyPayloadData(intent, payload, nextState);
+            this.notifyListeners();
             console.log(`[AgentAdapter] No Transition: ${this.state} + ${intent} -> ${nextState}`);
         }
     }
@@ -577,7 +796,7 @@ class AgentAdapterService {
     /**
      * Internal transition helper to handle side-effects
      */
-    private transitionTo(nextState: UiState) {
+    private transitionTo(nextState: UiState, intent?: string, payload?: any) {
         console.log(`[Mediator] Requesting: ${this.state} -> ${nextState}`);
 
         // ENTERPRISE RULE #1: Recursive Transitions are Valid
@@ -605,6 +824,8 @@ class AgentAdapterService {
 
         const previousState = this.state;
         this.state = nextState;
+        this.applyPayloadData(intent || 'UNKNOWN', payload, nextState);
+        this.resetInactivityTimer();
 
         console.log(`[AgentAdapter] State Transition: ${previousState} -> ${this.state}`);
 
@@ -618,8 +839,9 @@ class AgentAdapterService {
         // Speak Agent response (lookup from legacy map)
         const speech = STATE_SPEECH_MAP[nextState];
         if (speech) {
-            console.log(`[AgentAdapter] Speaking: "${speech}"`);
-            this.speak(speech);
+            const resolvedSpeech = this.withTenantName(speech);
+            console.log(`[AgentAdapter] Speaking: "${resolvedSpeech}"`);
+            this.speak(resolvedSpeech);
         } else {
             // If no speech, check if we should listen
             // Start listening if applicable
@@ -639,24 +861,20 @@ class AgentAdapterService {
      * Actually, Voice dispatch should probably NOT use handleIntent because handleIntent kills voice.
      */
     public dispatch(intent: Intent, payload?: any) {
+        this.resetInactivityTimer();
         // Voice dispatch uses StateMachine too.
         // We can reuse the calculation logic from handleIntent, but skip the "Kill Audio" part.
 
         // 2. CALCULATE TRANSITION (Centralized State Machine)
-        let nextState: UiState = this.state;
-
-        if (intent === 'BACK_REQUESTED' || intent === 'CANCEL_REQUESTED') {
-            nextState = StateMachine.getPreviousState(this.state as UIState) as UiState;
-        } else if (intent === 'RESET') {
-            nextState = 'IDLE';
-        } else {
-            nextState = StateMachine.transition(this.state as UIState, intent) as UiState;
-        }
+        const nextState = this.resolveNextStateFromIntent(this.state, intent);
 
         if (nextState !== this.state) {
             // We can check if we should speak here.
             // But for now, just transition.
-            this.transitionTo(nextState);
+            this.transitionTo(nextState, intent, payload);
+        } else {
+            this.applyPayloadData(intent, payload, nextState);
+            this.notifyListeners();
         }
     }
 
@@ -681,6 +899,11 @@ class AgentAdapterService {
     public speak(text: string): void {
         this.emitTranscript(text, true, 'ai');
         VoiceRuntime.speak(text);
+    }
+
+    private withTenantName(text: string): string {
+        const tenantName = getTenant()?.name || "our hotel";
+        return text.replace(/\{\{TENANT_NAME\}\}/g, tenantName);
     }
 
     /**
@@ -708,6 +931,7 @@ class AgentAdapterService {
     private notifyListeners() {
         const metadata = StateMachine.getMetadata(this.state as UIState);
         const fullData = {
+            ...this.viewData,
             metadata: {
                 ...metadata,
                 listening: this.hasVoiceAuthority()
