@@ -1,0 +1,249 @@
+@import "tailwindcss";
+
+/* Tell Tailwind v4 to use the .dark class (set by ThemeProvider) */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ─── Design System Tokens ─── */
+@theme {
+  /* Typography Scale */
+  --font-size-micro: 9px;
+  --font-size-caption: 10px;
+  --font-size-label: 11px;
+  --font-size-body-sm: 14px;
+
+  /* Border Radius Scale */
+  --radius-button: 0.75rem;
+  --radius-input: 1rem;
+  --radius-card: 1.5rem;
+  --radius-card-lg: 2rem;
+  --radius-card-xl: 2.5rem;
+  --radius-sidebar-item: 1.25rem;
+
+  /* Letter Spacing */
+  --tracking-label: 0.2em;
+  --tracking-label-wide: 0.25em;
+
+  /* ── Accent Color Tokens ──
+     These resolve automatically per mode via :root / .dark custom properties.
+     To change the entire app's accent, edit ONLY :root and .dark below. */
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-accent-muted: var(--accent-muted);
+  --color-accent-ring: var(--accent-ring);
+}
+
+/* ─── Global Focus-Visible Styles ─── */
+*:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+  border-radius: 0.5rem;
+}
+
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+
+button:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
+}
+
+:root {
+  /* ── Accent Palette: BLUE (Light Mode) ── */
+  --accent: #3b82f6; /* blue-500 */
+  --accent-strong: #2563eb; /* blue-600 */
+  --accent-muted: rgba(59, 130, 246, 0.1);
+  --accent-ring: rgba(59, 130, 246, 0.3);
+
+  /* LIGHT MODE surfaces */
+  --bg-primary: #fcfcfc;
+  --text-primary: #1e293b;
+
+  /* Material/Glass Effect for Light Mode: Cleaner White */
+  --glass-bg: rgba(255, 255, 255, 0.7);
+  --glass-border: 1px solid rgba(0, 0, 0, 0.05);
+
+  /* Shadow: Flat, subtle elevation */
+  --glass-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+
+  --glass-blur: blur(16px);
+}
+
+/* DARK MODE - Clean, Flat Glass */
+.dark {
+  /* ── Accent Palette: ORANGE (Dark Mode) ── */
+  --accent: #f97316; /* orange-500 */
+  --accent-strong: #ea580c; /* orange-600 */
+  --accent-muted: rgba(249, 115, 22, 0.1);
+  --accent-ring: rgba(249, 115, 22, 0.3);
+
+  --bg-primary: #050505;
+  --text-primary: #ffffff;
+
+  /* Flatter Dark Background */
+  --glass-bg: rgba(255, 255, 255, 0.05);
+
+  /* Crisp, thin border */
+  --glass-border: 1px solid rgba(255, 255, 255, 0.08);
+
+  /* Flat, deep shadow without glows or reflections */
+  --glass-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+
+  --glass-blur: blur(24px);
+}
+
+body {
+  margin: 0;
+  font-family: "Inter", sans-serif;
+  color: var(--text-primary);
+  transition: color 0.3s ease;
+  overflow: hidden;
+}
+
+/* BACKGROUNDS */
+
+.bg-theme-light {
+  background-color: #f8fafc;
+  background-image:
+    radial-gradient(at 0% 0%, rgba(59, 130, 246, 0.03) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(249, 115, 22, 0.03) 0px, transparent 50%),
+    radial-gradient(
+      at 100% 100%,
+      rgba(16, 185, 129, 0.03) 0px,
+      transparent 50%
+    ),
+    radial-gradient(at 0% 100%, rgba(139, 92, 246, 0.03) 0px, transparent 50%);
+  position: relative;
+}
+
+.bg-theme-dark {
+  background-color: #050505;
+  background-image:
+    radial-gradient(
+      circle at 30% 20%,
+      rgba(249, 115, 22, 0.05) 0%,
+      transparent 40%
+    ),
+    linear-gradient(to bottom right, #050505, #000000);
+}
+
+/* Sidebar Glass Style */
+.sidebar-glass {
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
+}
+.dark .sidebar-glass {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(24px);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+}
+
+/* Widget Cards */
+.glass-card {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  transition: all 0.25s ease;
+}
+
+/* Light Hover: Cleaner appearance */
+.glass-card:hover:not(.dark *) {
+  background: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+}
+
+.dark .glass-card:hover {
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 15px 45px rgba(0, 0, 0, 0.7);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+/* Global Scrollbar Reset */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.2);
+  border-radius: 3px;
+}
+
+/* Custom Overlay Scrollbar for Sidebar */
+.custom-sidebar-scrollbar {
+  overflow-y: overlay !important; /* Non-standard but allows overlay on webkit */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(156, 163, 175, 0.1) transparent;
+}
+
+.custom-sidebar-scrollbar::-webkit-scrollbar {
+  width: 5px;
+}
+
+.custom-sidebar-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+  margin: 10px 0; /* Keeps thumb away from rounded corners */
+}
+
+.custom-sidebar-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(156, 163, 175, 0.05); /* Nearly invisible by default */
+  border-radius: 10px;
+  background-clip: padding-box;
+  border: 1px solid transparent;
+}
+
+.custom-sidebar-scrollbar:hover::-webkit-scrollbar-thumb {
+  background-color: rgba(156, 163, 175, 0.3); /* Subtle on hover */
+}
+
+.custom-sidebar-scrollbar::-webkit-scrollbar-thumb:active {
+  background-color: rgba(156, 163, 175, 0.5); /* More visible on interaction */
+}
+
+/* Hide default browser number input spin buttons */
+input::-webkit-outer-spin-button,
+input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+/* Custom animations */
+@keyframes float {
+  0% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+  100% {
+    transform: translateY(0px);
+  }
+}
+.animate-float {
+  animation: float 6s ease-in-out infinite;
+}
+
+/* Hide scrollbar utility */
+.scrollbar-none {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}

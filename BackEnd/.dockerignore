@@ -1,0 +1,9 @@
+__pycache__
+venv
+.git
+.gitignore
+.dockerignore
+*.pyc
+.env
+.DS_Store
+.vscode

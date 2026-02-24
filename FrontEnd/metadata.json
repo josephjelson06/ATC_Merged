@@ -1,0 +1,7 @@
+{
+  "name": "Refactoring of GlassDash Admin by Jelson Joseph",
+  "description": "A high-fidelity glassmorphism dashboard with dark and light themes, featuring charts and administrative widgets.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

@@ -1,0 +1,13 @@
+# IDE and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Merged project specific ignores (if any are needed at root)
+BackEnd/venv/
+BackEnd/__pycache__/
+FrontEnd/node_modules/
+FrontEnd/.next/
+KioskUI/node_modules/
+KioskUI/dist/
