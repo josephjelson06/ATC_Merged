@@ -24,6 +24,8 @@ PLATFORM_PERMISSIONS = [
     "platform:roles:write",
     "platform:settings:read",
     "platform:settings:write",
+    "platform:support:read",
+    "platform:support:write",
 ]
 
 HOTEL_PERMISSIONS = [
