@@ -12,11 +12,12 @@ export function pathnameToLegacyRoute(pathname: string): string {
   if (mode === "super") {
     switch (section) {
       case "dashboard": return "dashboard";
+      case "hotels":    return id ? "tenant-details" : "tenants";
       case "tenants":   return id ? "tenant-details" : "tenants"; // Renamed from hotels
+      case "kiosks":    return id ? "kiosk-details" : "kiosks";
       case "plans":     return "plans";
       case "subscriptions": return "subscriptions";
       case "users":     return "users-mgmt";
-      // Dead routes removed: kiosks, invoices, reports, audit-logs, settings
       case "helpdesk":  return "helpdesk";
       case "profile":   return "profile";
       default:          return "dashboard";
@@ -26,12 +27,14 @@ export function pathnameToLegacyRoute(pathname: string): string {
   if (mode === "hotel") {
     switch (section) {
       case "dashboard": return "hotel-dashboard";
+      case "rooms":     return "rooms";
+      case "bookings":  return "bookings";
+      case "guests":    return "guests";
       case "users":     return "user-mgmt";
       case "roles":     return "role-mgmt";
       case "billing":   return "billing";
       case "help":      return "help";
       case "profile":   return "hotel-profile";
-      // Dead routes removed: guests, rooms, bookings, rates, incidents, reports, audit, settings
       default:          return "hotel-dashboard";
     }
   }
@@ -45,6 +48,8 @@ export function legacyRouteToPath(route: string, viewMode: ViewMode): string {
       case "dashboard":      return "/super/dashboard";
       case "tenants":        return "/super/tenants";
       case "tenant-details": return "/super/tenants/1"; // Placeholder ID
+      case "kiosks":         return "/super/kiosks";
+      case "kiosk-details":  return "/super/kiosks/1"; // Placeholder ID
       case "plans":          return "/super/plans";
       case "subscriptions":  return "/super/subscriptions";
       case "users-mgmt":     return "/super/users";
@@ -57,6 +62,9 @@ export function legacyRouteToPath(route: string, viewMode: ViewMode): string {
   // viewMode === "hotel"
   switch (route) {
     case "hotel-dashboard": return "/hotel/dashboard";
+    case "rooms":           return "/hotel/rooms";
+    case "bookings":        return "/hotel/bookings";
+    case "guests":          return "/hotel/guests";
     case "user-mgmt":       return "/hotel/users";
     case "role-mgmt":       return "/hotel/roles";
     case "billing":         return "/hotel/billing";

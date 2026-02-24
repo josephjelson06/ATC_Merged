@@ -20,12 +20,19 @@ export default function HotelRooms() {
     updateRoomStatus,
   } = useRooms(tenantId);
 
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({
+  const [showTypeForm, setShowTypeForm] = useState(false);
+  const [showRoomForm, setShowRoomForm] = useState(false);
+  const [roomTypeForm, setRoomTypeForm] = useState({
     name: "",
     code: "",
     price: "",
     amenities: "",
+  });
+  const [roomForm, setRoomForm] = useState({
+    roomTypeId: "",
+    roomNumber: "",
+    floor: "",
+    status: "available",
   });
 
   useEffect(() => {
@@ -38,16 +45,38 @@ export default function HotelRooms() {
   const handleCreateType = async (e: React.FormEvent) => {
     e.preventDefault();
     await createRoomType({
-      name: form.name,
-      code: form.code,
-      price: parseFloat(form.price),
-      amenities: form.amenities
+      name: roomTypeForm.name,
+      code: roomTypeForm.code,
+      price: parseFloat(roomTypeForm.price),
+      amenities: roomTypeForm.amenities
         .split(",")
         .map((s) => s.trim())
         .filter(Boolean),
     });
-    setForm({ name: "", code: "", price: "", amenities: "" });
-    setShowForm(false);
+    setRoomTypeForm({ name: "", code: "", price: "", amenities: "" });
+    setShowTypeForm(false);
+  };
+
+  const handleCreateRoom = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await createRoom({
+      roomTypeId: roomForm.roomTypeId,
+      roomNumber: roomForm.roomNumber,
+      floor: roomForm.floor ? parseInt(roomForm.floor, 10) : undefined,
+      status: roomForm.status as
+        | "available"
+        | "occupied"
+        | "housekeeping"
+        | "maintenance",
+      roomTypeName: undefined,
+    });
+    setRoomForm({
+      roomTypeId: "",
+      roomNumber: "",
+      floor: "",
+      status: "available",
+    });
+    setShowRoomForm(false);
   };
 
   return (
@@ -59,12 +88,21 @@ export default function HotelRooms() {
           </h1>
           <p className="text-gray-500">Manage your property's room inventory</p>
         </div>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          {showForm ? "Cancel" : "+ Add Room Type"}
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={() => setShowTypeForm(!showTypeForm)}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            {showTypeForm ? "Cancel" : "+ Add Room Type"}
+          </button>
+          <button
+            onClick={() => setShowRoomForm(!showRoomForm)}
+            disabled={roomTypes.length === 0}
+            className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
+          >
+            {showRoomForm ? "Cancel" : "+ Add Room"}
+          </button>
+        </div>
       </div>
 
       {error && (
@@ -73,7 +111,7 @@ export default function HotelRooms() {
         </div>
       )}
 
-      {showForm && (
+      {showTypeForm && (
         <form
           onSubmit={handleCreateType}
           className="bg-white rounded shadow p-6 mb-6 grid grid-cols-2 gap-4"
@@ -81,15 +119,19 @@ export default function HotelRooms() {
           <input
             className="border rounded px-3 py-2"
             placeholder="Name (e.g. Deluxe Suite)"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            value={roomTypeForm.name}
+            onChange={(e) =>
+              setRoomTypeForm({ ...roomTypeForm, name: e.target.value })
+            }
             required
           />
           <input
             className="border rounded px-3 py-2"
             placeholder="Code (e.g. DELUXE)"
-            value={form.code}
-            onChange={(e) => setForm({ ...form, code: e.target.value })}
+            value={roomTypeForm.code}
+            onChange={(e) =>
+              setRoomTypeForm({ ...roomTypeForm, code: e.target.value })
+            }
             required
           />
           <input
@@ -97,21 +139,80 @@ export default function HotelRooms() {
             placeholder="Price per night"
             type="number"
             step="0.01"
-            value={form.price}
-            onChange={(e) => setForm({ ...form, price: e.target.value })}
+            value={roomTypeForm.price}
+            onChange={(e) =>
+              setRoomTypeForm({ ...roomTypeForm, price: e.target.value })
+            }
             required
           />
           <input
             className="border rounded px-3 py-2"
             placeholder="Amenities (comma separated)"
-            value={form.amenities}
-            onChange={(e) => setForm({ ...form, amenities: e.target.value })}
+            value={roomTypeForm.amenities}
+            onChange={(e) =>
+              setRoomTypeForm({ ...roomTypeForm, amenities: e.target.value })
+            }
           />
           <button
             type="submit"
             className="col-span-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
           >
             Create Room Type
+          </button>
+        </form>
+      )}
+
+      {showRoomForm && (
+        <form
+          onSubmit={handleCreateRoom}
+          className="bg-white rounded shadow p-6 mb-6 grid grid-cols-2 gap-4"
+        >
+          <select
+            className="border rounded px-3 py-2"
+            value={roomForm.roomTypeId}
+            onChange={(e) =>
+              setRoomForm({ ...roomForm, roomTypeId: e.target.value })
+            }
+            required
+          >
+            <option value="">Select Room Type</option>
+            {roomTypes.map((rt) => (
+              <option key={rt.id} value={rt.id}>
+                {rt.name} ({rt.code})
+              </option>
+            ))}
+          </select>
+          <input
+            className="border rounded px-3 py-2"
+            placeholder="Room number (e.g. 101)"
+            value={roomForm.roomNumber}
+            onChange={(e) =>
+              setRoomForm({ ...roomForm, roomNumber: e.target.value })
+            }
+            required
+          />
+          <input
+            className="border rounded px-3 py-2"
+            placeholder="Floor (optional)"
+            type="number"
+            value={roomForm.floor}
+            onChange={(e) => setRoomForm({ ...roomForm, floor: e.target.value })}
+          />
+          <select
+            className="border rounded px-3 py-2"
+            value={roomForm.status}
+            onChange={(e) => setRoomForm({ ...roomForm, status: e.target.value })}
+          >
+            <option value="available">Available</option>
+            <option value="occupied">Occupied</option>
+            <option value="housekeeping">Housekeeping</option>
+            <option value="maintenance">Maintenance</option>
+          </select>
+          <button
+            type="submit"
+            className="col-span-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
+          >
+            Create Room
           </button>
         </form>
       )}
@@ -186,7 +287,7 @@ export default function HotelRooms() {
                 <td className="px-6 py-4 font-medium text-gray-900">
                   {room.roomNumber}
                 </td>
-                <td className="px-6 py-4 text-gray-500">{room.floor ?? "—"}</td>
+                <td className="px-6 py-4 text-gray-500">{room.floor ?? "--"}</td>
                 <td className="px-6 py-4">
                   <span
                     className={`px-2 py-1 rounded-full text-xs font-medium ${

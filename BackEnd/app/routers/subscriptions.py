@@ -12,6 +12,17 @@ from typing import List
 router = APIRouter(tags=["Subscriptions"])
 
 
+def _serialize_subscription(sub):
+    return {
+        "id": sub.id,
+        "tenant_id": sub.tenant_id,
+        "plan_id": getattr(sub.tenant, "plan_id", None),
+        "start_date": sub.start_date,
+        "end_date": sub.end_date,
+        "status": sub.status,
+    }
+
+
 @router.get("/api/subscriptions", response_model=List[SubscriptionRead])
 @router.get("/api/subscriptions/", response_model=List[SubscriptionRead])
 def get_subscriptions(
@@ -21,7 +32,8 @@ def get_subscriptions(
     # _=Depends(require_permission("platform:billing:read")),
 ):
     service = SubscriptionService(db)
-    return service.get_all(skip, limit)
+    subs = service.get_all(skip, limit)
+    return [_serialize_subscription(sub) for sub in subs]
 
 
 @router.get("/api/hotels/{hotel_id}/subscription", response_model=SubscriptionRead)
@@ -34,4 +46,4 @@ def get_subscription(
     sub = service.get_by_tenant(hotel_id)
     if not sub:
         raise HTTPException(status_code=404, detail="No active subscription found")
-    return sub
+    return _serialize_subscription(sub)

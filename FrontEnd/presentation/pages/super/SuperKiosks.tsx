@@ -158,6 +158,12 @@ export default function SuperKiosks() {
                   <option value="offline">Offline</option>
                   <option value="maintenance">Maintenance</option>
                 </select>
+                <a
+                  href={`/super/kiosks/${k.id}`}
+                  className="mt-2 inline-block text-sm text-blue-600 hover:text-blue-700"
+                >
+                  View details
+                </a>
               </div>
             </div>
           ))}

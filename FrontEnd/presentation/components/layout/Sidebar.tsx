@@ -10,6 +10,7 @@ import {
   User,
   HelpCircle,
   LifeBuoy,
+  Monitor,
   PanelLeftClose,
   PanelLeft,
   X,
@@ -175,6 +176,33 @@ const Sidebar: React.FC<SidebarProps> = ({
                           collapsed={isCollapsed}
                         />
                       )}
+                      {hasPerm("hotel:rooms:read") && (
+                        <SidebarItem
+                          icon={Building2}
+                          label="Rooms"
+                          active={currentRoute === "rooms"}
+                          onClick={() => onNavigate("rooms")}
+                          collapsed={isCollapsed}
+                        />
+                      )}
+                      {hasPerm("hotel:bookings:read") && (
+                        <SidebarItem
+                          icon={FileText}
+                          label="Bookings"
+                          active={currentRoute === "bookings"}
+                          onClick={() => onNavigate("bookings")}
+                          collapsed={isCollapsed}
+                        />
+                      )}
+                      {hasPerm("hotel:guests:read") && (
+                        <SidebarItem
+                          icon={Users}
+                          label="Guests"
+                          active={currentRoute === "guests"}
+                          onClick={() => onNavigate("guests")}
+                          collapsed={isCollapsed}
+                        />
+                      )}
                     </SidebarSection>
 
                     <SidebarSection title="Management" collapsed={isCollapsed}>
@@ -241,6 +269,16 @@ const Sidebar: React.FC<SidebarProps> = ({
                           currentRoute === "tenant-details"
                         }
                         onClick={() => onNavigate("tenants")}
+                        collapsed={isCollapsed}
+                      />
+                      <SidebarItem
+                        icon={Monitor}
+                        label="Kiosks"
+                        active={
+                          currentRoute === "kiosks" ||
+                          currentRoute === "kiosk-details"
+                        }
+                        onClick={() => onNavigate("kiosks")}
                         collapsed={isCollapsed}
                       />
                     </SidebarSection>

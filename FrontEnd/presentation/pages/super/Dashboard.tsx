@@ -1,24 +1,23 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import GlassCard from "../../components/ui/GlassCard";
 import PageHeader from "../../components/ui/PageHeader";
 import {
   Building,
   Activity,
-  IndianRupee,
   Info,
   ShieldAlert,
-  CreditCard,
+  Monitor,
+  FileText,
 } from "lucide-react";
 import TenantOnboardingTrend from "../../components/dashboard/charts/TenantOnboardingTrend";
 import CriticalAlertsFeed from "../../components/dashboard/CriticalAlertsFeed";
 import GlassDatePicker from "../../components/ui/GlassDatePicker";
 import { useTheme } from "../../hooks/useTheme";
 import { useTenants } from "../../../application/hooks/useTenants";
-import { useSubscriptions } from "../../../application/hooks/useSubscriptions";
-import { usePlans } from "../../../application/hooks/usePlans";
 import { useSupport } from "../../../application/hooks/useSupport";
+import { repositories } from "@/infrastructure/config/container";
 
 const KPIBadge = ({
   value,
@@ -131,51 +130,92 @@ const WarRoomCard = ({
 
 const Dashboard: React.FC = () => {
   const { tenants, loading: tenantsLoading, fetchTenants } = useTenants();
-  const { plans, loading: plansLoading, fetchPlans } = usePlans();
-  const {
-    subscriptions,
-    loading: subsLoading,
-    fetchSubscriptions,
-  } = useSubscriptions();
   const { tickets, loading: ticketsLoading, fetchTickets } = useSupport();
+  const [kioskCount, setKioskCount] = useState(0);
+  const [bookingCount, setBookingCount] = useState(0);
+  const [fleetLoading, setFleetLoading] = useState(false);
 
   useEffect(() => {
     fetchTenants();
-    fetchPlans();
-    fetchSubscriptions();
     fetchTickets();
-  }, [fetchTenants, fetchPlans, fetchSubscriptions, fetchTickets]);
+  }, [fetchTenants, fetchTickets]);
 
-  const activeTenants = tenants.filter((t) => t.status === "active").length;
-  const onboardingTenants = tenants.filter((t) => t.status !== "active").length;
+  useEffect(() => {
+    let active = true;
 
-  const monthlyRevenue = subscriptions
-    .filter((sub) => sub.status === "active")
-    .reduce((sum, sub) => {
-      const plan = plans.find((p) => p.id === sub.planId);
-      // Approximation: if period_months is available and > 0, MRR = price / period_months. Else price.
-      const months = plan?.period_months || 1;
-      const mrr = (plan?.price || 0) / months;
-      return sum + mrr;
-    }, 0);
+    async function fetchFleetMetrics() {
+      if (tenants.length === 0) {
+        setKioskCount(0);
+        setBookingCount(0);
+        return;
+      }
 
-  const avgRevenuePerActiveTenant =
-    activeTenants > 0 ? Math.round(monthlyRevenue / activeTenants) : 0;
+      setFleetLoading(true);
 
-  const activeSubs = subscriptions.filter((s) => s.status === "active").length;
-  const expiredSubs = subscriptions.filter(
-    (s) => s.status === "expired" || s.status === "cancelled",
+      try {
+        const metrics = await Promise.all(
+          tenants.map(async (tenant) => {
+            const [kiosksResult, bookingsResult] = await Promise.allSettled([
+              repositories.kiosks.getAll(tenant.id),
+              repositories.bookings.getAll(tenant.id),
+            ]);
+
+            return {
+              kiosks:
+                kiosksResult.status === "fulfilled"
+                  ? kiosksResult.value.length
+                  : 0,
+              bookings:
+                bookingsResult.status === "fulfilled"
+                  ? bookingsResult.value.length
+                  : 0,
+            };
+          }),
+        );
+
+        if (!active) return;
+
+        const totalKiosks = metrics.reduce((sum, item) => sum + item.kiosks, 0);
+        const totalBookings = metrics.reduce(
+          (sum, item) => sum + item.bookings,
+          0,
+        );
+
+        setKioskCount(totalKiosks);
+        setBookingCount(totalBookings);
+      } finally {
+        if (active) setFleetLoading(false);
+      }
+    }
+
+    fetchFleetMetrics();
+    return () => {
+      active = false;
+    };
+  }, [tenants]);
+
+  const normalizeTenantStatus = (status?: string) =>
+    (status ?? "active").trim().toLowerCase();
+  const activeTenants = tenants.filter(
+    (tenant) => normalizeTenantStatus(tenant.status) === "active",
   ).length;
+  const onboardingTenants = tenants.length - activeTenants;
 
-  const openTickets = tickets.filter((t) => t.status === "open").length;
+  const openTickets = tickets.filter(
+    (ticket) => (ticket.status ?? "").toLowerCase() === "open",
+  ).length;
   const highPriorityTickets = tickets.filter(
-    (t) => t.status === "open" && t.priority === "High",
+    (ticket) =>
+      (ticket.status ?? "").toLowerCase() === "open" &&
+      (ticket.priority ?? "").toLowerCase() === "high",
   ).length;
 
-  const isLoading =
-    tenantsLoading || plansLoading || subsLoading || ticketsLoading;
-  const formatINR = (value: number) =>
-    `INR ${new Intl.NumberFormat("en-IN").format(Math.round(value))}`;
+  const avgKiosksPerTenant =
+    tenants.length > 0 ? (kioskCount / tenants.length).toFixed(1) : "0.0";
+  const avgBookingsPerTenant =
+    tenants.length > 0 ? (bookingCount / tenants.length).toFixed(1) : "0.0";
+
+  const isLoading = tenantsLoading || ticketsLoading || fleetLoading;
   const platformStatus =
     highPriorityTickets > 0 ? "Attention Required" : "Nominal";
 
@@ -211,28 +251,28 @@ const Dashboard: React.FC = () => {
           }
         />
         <WarRoomCard
-          title="MRR (Revenue)"
-          value={isLoading ? "--" : formatINR(monthlyRevenue)}
-          subtext="Projected monthly yield"
-          icon={IndianRupee}
+          title="Registered Kiosks"
+          value={isLoading ? "--" : String(kioskCount)}
+          subtext="Cross-tenant device fleet"
+          icon={Monitor}
           colorVariant="emerald"
           badge={
             <KPIBadge
-              value={formatINR(avgRevenuePerActiveTenant)}
-              trend={avgRevenuePerActiveTenant > 0 ? "up" : "neutral"}
+              value={`${avgKiosksPerTenant}/tenant`}
+              trend={kioskCount > 0 ? "up" : "neutral"}
             />
           }
         />
         <WarRoomCard
-          title="Platform Subscriptions"
-          value={isLoading ? "--" : String(activeSubs)}
-          subtext={`${expiredSubs} expired or cancelled`}
-          icon={CreditCard}
+          title="Total Bookings"
+          value={isLoading ? "--" : String(bookingCount)}
+          subtext="Cross-tenant reservation volume"
+          icon={FileText}
           colorVariant="amber"
           badge={
             <KPIBadge
-              value={`${activeSubs} active`}
-              trend={activeSubs > 0 ? "up" : "neutral"}
+              value={`${avgBookingsPerTenant}/tenant`}
+              trend={bookingCount > 0 ? "up" : "neutral"}
             />
           }
         />
@@ -283,3 +323,4 @@ const Dashboard: React.FC = () => {
 };
 
 export default Dashboard;
+
