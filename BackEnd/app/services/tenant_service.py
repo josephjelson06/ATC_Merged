@@ -6,6 +6,10 @@ from sqlalchemy import or_
 from fastapi import HTTPException, status
 
 from app.models.tenant import Tenant
+from app.models.tenant import TenantRole, TenantUser
+from app.models.billing import Subscription
+from app.models.support import SupportTicket
+from app.models.mappings import tenant_role_permissions
 from app.schemas.tenant import TenantCreate, TenantRead
 
 
@@ -82,10 +86,47 @@ class TenantService:
         return tenant
 
     def delete(self, tenant_id: UUID) -> bool:
-        tenant = self.get_by_id(tenant_id)
-        if not tenant:
+        tenant_exists = (
+            self.db.query(Tenant.id).filter(Tenant.id == tenant_id).first()
+        )
+        if not tenant_exists:
             return False
 
-        self.db.delete(tenant)
+        # Tenant has non-cascading dependencies (users/roles/subscriptions/support tickets)
+        # and an owner FK back to tenant_users. Clear + delete in deterministic order.
+        self.db.query(Tenant).filter(Tenant.id == tenant_id).update(
+            {"owner_user_id": None}, synchronize_session=False
+        )
+
+        self.db.query(SupportTicket).filter(SupportTicket.tenant_id == tenant_id).delete(
+            synchronize_session=False
+        )
+        self.db.query(Subscription).filter(Subscription.tenant_id == tenant_id).delete(
+            synchronize_session=False
+        )
+        self.db.query(TenantUser).filter(TenantUser.tenant_id == tenant_id).delete(
+            synchronize_session=False
+        )
+
+        role_ids = [
+            role_id
+            for (role_id,) in self.db.query(TenantRole.id)
+            .filter(TenantRole.tenant_id == tenant_id)
+            .all()
+        ]
+        if role_ids:
+            self.db.execute(
+                tenant_role_permissions.delete().where(
+                    tenant_role_permissions.c.role_id.in_(role_ids)
+                )
+            )
+
+        self.db.query(TenantRole).filter(TenantRole.tenant_id == tenant_id).delete(
+            synchronize_session=False
+        )
+
+        self.db.query(Tenant).filter(Tenant.id == tenant_id).delete(
+            synchronize_session=False
+        )
         self.db.commit()
         return True
