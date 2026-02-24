@@ -5,6 +5,11 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.modules.rbac import require_permission
+from app.schemas.kiosk_chat import (
+    KioskBookingChatResponse,
+    KioskChatRequest,
+    KioskChatResponse,
+)
 from app.schemas.kiosks import (
     KioskCreate,
     KioskHeartbeat,
@@ -13,6 +18,7 @@ from app.schemas.kiosks import (
     KioskTenantRead,
     KioskUpdate,
 )
+from app.services.kiosk_brain_service import KioskBrainService
 from app.services.kiosk_service import KioskService
 
 
@@ -90,3 +96,33 @@ def list_room_types_by_slug(
 ):
     service = KioskService(db)
     return service.get_room_types_by_slug(slug)
+
+
+@kiosk_public_router.post("/chat", response_model=KioskChatResponse)
+def kiosk_chat(
+    slug: str,
+    payload: KioskChatRequest,
+    db: Session = Depends(get_db),
+):
+    kiosk_service = KioskService(db)
+    tenant = kiosk_service.get_tenant_by_slug(slug)
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    brain_service = KioskBrainService(db)
+    return brain_service.chat(tenant=tenant, payload=payload)
+
+
+@kiosk_public_router.post("/chat/booking", response_model=KioskBookingChatResponse)
+def kiosk_booking_chat(
+    slug: str,
+    payload: KioskChatRequest,
+    db: Session = Depends(get_db),
+):
+    kiosk_service = KioskService(db)
+    tenant = kiosk_service.get_tenant_by_slug(slug)
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    brain_service = KioskBrainService(db)
+    return brain_service.booking_chat(tenant=tenant, payload=payload)

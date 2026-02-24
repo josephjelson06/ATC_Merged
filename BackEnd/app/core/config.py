@@ -13,7 +13,7 @@ BACKEND_ROOT = Path(__file__).resolve().parents[2]
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=str(BACKEND_ROOT / ".env"),
+        env_file=(str(BACKEND_ROOT / ".env"), str(BACKEND_ROOT / ".env.local")),
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
@@ -37,9 +37,17 @@ class Settings(BaseSettings):
         default="lax",
         validation_alias="ACCESS_TOKEN_COOKIE_SAMESITE",
     )
+    groq_api_key: str | None = Field(default=None, validation_alias="GROQ_API_KEY")
+    groq_model: str = Field(
+        default="llama-3.3-70b-versatile",
+        validation_alias="GROQ_MODEL",
+    )
+    groq_timeout_seconds: float = Field(
+        default=20.0,
+        validation_alias="GROQ_TIMEOUT_SECONDS",
+    )
 
 
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
-

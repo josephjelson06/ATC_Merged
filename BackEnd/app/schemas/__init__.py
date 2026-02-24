@@ -22,6 +22,7 @@ from .kiosks import (
     KioskTenantRead,
     KioskRoomTypeRead,
 )
+from .kiosk_chat import KioskChatRequest, KioskChatResponse, KioskBookingChatResponse
 from .incidents import (
     IncidentCreate,
     IncidentUpdate,
