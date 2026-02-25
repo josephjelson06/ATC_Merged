@@ -24,9 +24,9 @@ export class RoomServiceError extends Error {
   }
 }
 
-const DEFAULT_CURRENCY = import.meta.env.VITE_KIOSK_CURRENCY || "USD";
+const DEFAULT_CURRENCY = process.env.NEXT_PUBLIC_KIOSK_CURRENCY || "USD";
 const DEFAULT_ROOM_IMAGE =
-  import.meta.env.VITE_KIOSK_ROOM_FALLBACK_IMAGE ||
+  process.env.NEXT_PUBLIC_KIOSK_ROOM_FALLBACK_IMAGE ||
   "https://picsum.photos/400/300?blur=1";
 
 function mapRoomTypeToCard(roomType: KioskRoomTypeApi): RoomDTO {

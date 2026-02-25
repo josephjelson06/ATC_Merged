@@ -14,14 +14,14 @@ export interface KioskSession {
   };
 }
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
 
 let activeSession: KioskSession | null = null;
 
 function resolveSlug(slug?: string): string {
-  const effectiveSlug = slug || import.meta.env.VITE_HOTEL_SLUG;
+  const effectiveSlug = slug || process.env.NEXT_PUBLIC_HOTEL_SLUG;
   if (!effectiveSlug) {
-    throw new Error('Missing hotel slug. Set VITE_HOTEL_SLUG or pass slug to initSession().');
+    throw new Error('Missing hotel slug. Set NEXT_PUBLIC_HOTEL_SLUG or pass slug to initSession().');
   }
   return effectiveSlug;
 }

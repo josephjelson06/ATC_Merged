@@ -36,7 +36,10 @@ class TTSControllerService {
 
     constructor() {
         console.log("[TTSController] Initialized (Phase 9.4 - Audio Authority)");
-        this.initVoice();
+        // Guard against SSR/build-time execution in Next.js
+        if (typeof window !== 'undefined') {
+            this.initVoice();
+        }
     }
 
     /**

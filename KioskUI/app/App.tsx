@@ -1,58 +1,64 @@
-import React, { useState, useEffect } from 'react';
-import { UIContext } from '../state/uiContext';
-// Agent Authority
-import { AgentAdapter } from '../agent/adapter';
-import { UiState } from '../agent/index'; // Import directly from source
+"use client";
 
-// Pages
-import { IdlePage } from '../pages/IdlePage';
-import { WelcomePage } from '../pages/WelcomePage';
-import { ScanIdPage } from '../pages/ScanIdPage';
-import { RoomSelectPage } from '../pages/RoomSelectPage';
-import { BookingCollectPage } from '../pages/BookingCollectPage';
-import { BookingSummaryPage } from '../pages/BookingSummaryPage';
-import { PaymentPage } from '../pages/PaymentPage';
-import { CompletePage } from '../pages/CompletePage';
-import { LauncherPage } from '../pages/LauncherPage';
+import React, { useState, useEffect } from "react";
+import { UIContext } from "../state/uiContext";
+// Agent Authority
+import { AgentAdapter } from "../agent/adapter";
+import { UiState } from "../agent/index"; // Import directly from source
+
+// Pages (renamed to 'views' to avoid Next.js Pages Router conflict)
+import { IdlePage } from "../views/IdlePage";
+import { WelcomePage } from "../views/WelcomePage";
+import { ScanIdPage } from "../views/ScanIdPage";
+import { RoomSelectPage } from "../views/RoomSelectPage";
+import { BookingCollectPage } from "../views/BookingCollectPage";
+import { BookingSummaryPage } from "../views/BookingSummaryPage";
+import { PaymentPage } from "../views/PaymentPage";
+import { CompletePage } from "../views/CompletePage";
+import { LauncherPage } from "../views/LauncherPage";
 
 // Components
-import { ErrorBanner } from '../components/ErrorBanner';
-import { BackButton } from '../components/BackButton';
-import { CaptionsOverlay } from '../components/CaptionsOverlay';
-import { DevToolbar } from '../components/DevToolbar';
-import { getTenantSlug } from '../services/tenantContext';
+import { ErrorBanner } from "../components/ErrorBanner";
+import { BackButton } from "../components/BackButton";
+import { CaptionsOverlay } from "../components/CaptionsOverlay";
+import { DevToolbar } from "../components/DevToolbar";
+import { getTenantSlug } from "../services/tenantContext";
 
 const App: React.FC = () => {
   // Local UI State (Renderer only)
-  const [state, setState] = useState<UiState>('IDLE');
+  const [state, setState] = useState<UiState>("IDLE");
   const [forcedState, setForcedState] = useState<UiState | null>(null);
   const [data, setData] = useState<any>({});
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [currentPath, setCurrentPath] = useState<string>(() => window.location.pathname || '/');
+  const [currentPath, setCurrentPath] = useState<string>(
+    () => window.location.pathname || "/",
+  );
 
   const navigateTo = (path: string, replace = false) => {
     if (window.location.pathname !== path) {
       if (replace) {
-        window.history.replaceState({}, '', path);
+        window.history.replaceState({}, "", path);
       } else {
-        window.history.pushState({}, '', path);
+        window.history.pushState({}, "", path);
       }
     }
     setCurrentPath(path);
   };
 
   useEffect(() => {
-    const onPopState = () => setCurrentPath(window.location.pathname || '/');
-    window.addEventListener('popstate', onPopState);
-    return () => window.removeEventListener('popstate', onPopState);
+    const onPopState = () => setCurrentPath(window.location.pathname || "/");
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
   }, []);
 
   // 1. CONNECT TO AGENT BRAIN
   useEffect(() => {
     // Subscribe to the Agent Adapter
     const unsubscribe = AgentAdapter.subscribe((newState) => {
-      console.log(`[APP RENDERER] Received State Update from Agent: ${newState}`);
+      console.log(
+        `[APP RENDERER] Received State Update from Agent: ${newState}`,
+      );
       setState(newState);
       // In a real app, 'data' would come from a View Model or State/Store mapped to the UiState.
       // For now, we keep data empty or static as we focus on Navigation Authority.
@@ -61,7 +67,7 @@ const App: React.FC = () => {
 
     return () => {
       unsubscribe();
-    }
+    };
   }, []);
 
   // 2. INTENT EMITTER (Forwarder to Agent)
@@ -73,9 +79,9 @@ const App: React.FC = () => {
     // However, since Agent is instantaneous (synchronous pure function), loading is minimal.
     // We'll keep it simple.
 
-    if (type === 'ERROR_DISMISSED') {
+    if (type === "ERROR_DISMISSED") {
       setError(null);
-      // If error clearing needs to change state, dispatch an intent. 
+      // If error clearing needs to change state, dispatch an intent.
       // Current design: ERROR state handles dismissal via BACK/TOUCH.
       return;
     }
@@ -93,95 +99,107 @@ const App: React.FC = () => {
   const hasTenant = Boolean(getTenantSlug().trim());
 
   useEffect(() => {
-    if (!hasTenant && currentPath !== '/') {
-      navigateTo('/', true);
+    if (!hasTenant && currentPath !== "/") {
+      navigateTo("/", true);
       return;
     }
 
-    if (hasTenant && currentPath === '/') {
-      navigateTo('/app', true);
+    if (hasTenant && currentPath === "/") {
+      navigateTo("/app", true);
     }
   }, [currentPath, hasTenant]);
 
   const handleTenantSelected = () => {
-    AgentAdapter.dispatch('RESET' as any);
-    navigateTo('/app');
+    AgentAdapter.dispatch("RESET" as any);
+    navigateTo("/app");
   };
 
   // 3. DUMB ROUTER (State -> Component)
   // CRITICAL: This is a pure switch on Agent State. No logic allowed.
   const renderPage = () => {
     switch (effectiveState) {
-      case 'IDLE': return <IdlePage />;
+      case "IDLE":
+        return <IdlePage />;
 
       // WelcomePage handles both Voice and Manual visual modes
-      case 'WELCOME': return <WelcomePage visualMode="voice" />;
-      case 'AI_CHAT': return <WelcomePage visualMode="voice" />;
-      case 'MANUAL_MENU': return <WelcomePage visualMode="manual" />;
+      case "WELCOME":
+        return <WelcomePage visualMode="voice" />;
+      case "AI_CHAT":
+        return <WelcomePage visualMode="voice" />;
+      case "MANUAL_MENU":
+        return <WelcomePage visualMode="manual" />;
 
-      case 'SCAN_ID': return <ScanIdPage />;
-      case 'ROOM_SELECT': return <RoomSelectPage />;
-      case 'BOOKING_COLLECT': return <BookingCollectPage />;
-      case 'BOOKING_SUMMARY': return <BookingSummaryPage />;
-      case 'PAYMENT': return <PaymentPage />;
+      case "SCAN_ID":
+        return <ScanIdPage />;
+      case "ROOM_SELECT":
+        return <RoomSelectPage />;
+      case "BOOKING_COLLECT":
+        return <BookingCollectPage />;
+      case "BOOKING_SUMMARY":
+        return <BookingSummaryPage />;
+      case "PAYMENT":
+        return <PaymentPage />;
 
-      case 'KEY_DISPENSING': return (
-        <div className="h-screen w-full flex flex-col items-center justify-center bg-slate-900 text-white">
-          <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500 mb-4"></div>
-          <h2 className="text-2xl font-light">Dispensing Key Card...</h2>
-        </div>
-      );
+      case "KEY_DISPENSING":
+        return (
+          <div className="h-screen w-full flex flex-col items-center justify-center bg-slate-900 text-white">
+            <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500 mb-4"></div>
+            <h2 className="text-2xl font-light">Dispensing Key Card...</h2>
+          </div>
+        );
 
       // Complete Page
-      case 'COMPLETE': return <CompletePage />;
+      case "COMPLETE":
+        return <CompletePage />;
 
       // Error State (Runtime)
-      case 'ERROR': return (
-        <div className="h-screen w-full flex flex-col items-center justify-center bg-red-900/20 text-white" onClick={() => emit('TOUCH_SELECTED')}>
-          <h2 className="text-3xl font-bold mb-4">System Error</h2>
-          <p>Please touch to restart.</p>
-        </div>
-      );
+      case "ERROR":
+        return (
+          <div
+            className="h-screen w-full flex flex-col items-center justify-center bg-red-900/20 text-white"
+            onClick={() => emit("TOUCH_SELECTED")}
+          >
+            <h2 className="text-3xl font-bold mb-4">System Error</h2>
+            <p>Please touch to restart.</p>
+          </div>
+        );
 
-      default: return <IdlePage />;
+      default:
+        return <IdlePage />;
     }
   };
 
   return (
-    <UIContext.Provider value={{ state, data, emit, loading, transcript: '' }}>
+    <UIContext.Provider value={{ state, data, emit, loading, transcript: "" }}>
       {!hasTenant ? (
         <LauncherPage onTenantSelected={handleTenantSelected} />
       ) : (
-      <div className="antialiased w-full h-full relative">
+        <div className="antialiased w-full h-full relative">
+          {/* Global Navigation Controls (Visibility controlled implicitly by page rendering, backing is Agent driven) */}
+          {/* <BackButton /> -- Removed global back button until Phase 7C data contract is ready. */}
+          {/* <BackButton /> */}
 
-        {/* Global Navigation Controls (Visibility controlled implicitly by page rendering, backing is Agent driven) */}
-        {/* <BackButton /> -- Removed global back button until Phase 7C data contract is ready. */}
-        {/* <BackButton /> */}
+          {error && (
+            <ErrorBanner message={error} onDismiss={() => setError(null)} />
+          )}
 
-        {error && (
-          <ErrorBanner
-            message={error}
-            onDismiss={() => setError(null)}
+          <CaptionsOverlay />
+
+          {renderPage()}
+
+          {/* Debug Info (To prove state comes from Agent) */}
+          <div className="fixed bottom-2 right-2 z-50 bg-black/50 text-white text-xs p-1 rounded opacity-30 hover:opacity-100 pointer-events-none">
+            Authority: AgentAdapter | State: {state}
+            {forcedState ? ` | Override: ${forcedState}` : ""}
+          </div>
+
+          {/* Development Toolbar */}
+          <DevToolbar
+            onForceState={(next) => setForcedState(next as UiState | null)}
+            isUnlocked={Boolean(forcedState)}
+            currentState={effectiveState as any}
           />
-        )}
-
-        <CaptionsOverlay />
-
-        {renderPage()}
-
-        {/* Debug Info (To prove state comes from Agent) */}
-        <div className="fixed bottom-2 right-2 z-50 bg-black/50 text-white text-xs p-1 rounded opacity-30 hover:opacity-100 pointer-events-none">
-          Authority: AgentAdapter | State: {state}
-          {forcedState ? ` | Override: ${forcedState}` : ''}
         </div>
-
-        {/* Development Toolbar */}
-        <DevToolbar
-          onForceState={(next) => setForcedState(next as UiState | null)}
-          isUnlocked={Boolean(forcedState)}
-          currentState={effectiveState as any}
-        />
-      </div>
       )}
     </UIContext.Provider>
   );

@@ -6,9 +6,9 @@ export type TenantPayload = Partial<TenantDTO> & {
   logo_url?: string | null;
 };
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
 
-let currentTenantSlug = (import.meta.env.VITE_HOTEL_SLUG || "").trim();
+let currentTenantSlug = (process.env.NEXT_PUBLIC_HOTEL_SLUG || "").trim();
 let currentTenant: TenantPayload | null = null;
 
 export function setTenantContext(tenantSlug: string, tenant: TenantPayload | null): void {

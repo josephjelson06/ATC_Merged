@@ -1,0 +1,15 @@
+@import "tailwindcss";
+
+/* Global resets for the Kiosk application */
+html,
+body {
+  width: 100%;
+  height: 100%;
+  background-color: #0f172a;
+  color: #f1f5f9;
+}
+
+#__next {
+  width: 100%;
+  height: 100%;
+}

@@ -40,7 +40,7 @@ const CONFIG = {
     MAX_SILENT_TURNS: 3,               // After 3 silent turns → reset
     WARN_SILENT_TURNS: 2,              // After 2 → play warning
     NETWORK_RETRY_DELAY_MS: 1000,      // Wait before retry
-    DEBUG_MODE: import.meta.env.DEV,   // Only in dev
+    DEBUG_MODE: process.env.NODE_ENV !== 'production',   // Only in dev
 };
 
 // Phase 10: Debug session tracking

@@ -5,9 +5,9 @@ type ErrorCallback = (error: Error) => void;
 
 import { AudioCapture } from "./audioCapture";
 
-const DG_API_KEY = import.meta.env.VITE_DEEPGRAM_API_KEY || "";
+const DG_API_KEY = process.env.NEXT_PUBLIC_DEEPGRAM_API_KEY || "";
 const DG_MODEL = "nova-2";
-const DG_LANGUAGE = import.meta.env.VITE_DEEPGRAM_LANGUAGE || "en-IN";
+const DG_LANGUAGE = process.env.NEXT_PUBLIC_DEEPGRAM_LANGUAGE || "en-IN";
 const DG_URL = "wss://api.deepgram.com/v1/listen";
 
 const KEEP_ALIVE_INTERVAL_MS = 5000;
