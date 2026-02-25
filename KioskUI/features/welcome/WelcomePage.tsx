@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
-import { useUIState } from "../state/uiContext";
-import { useFadeIn } from "../hooks/useAnimation";
+import { useUIState } from "../../state/uiContext";
+import { useFadeIn } from "../../hooks/useAnimation";
 import {
   Keyboard,
   Mic,
@@ -10,11 +10,11 @@ import {
   StopCircle,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Button } from "../components/ui/button";
-import { Orb, OrbState } from "../components/ui/orb";
-import AnimatedGradientBackground from "../components/ui/animated-gradient-background";
-import HoverRevealCards from "../components/ui/hover-reveal-cards";
-import { VoiceRuntime, VoiceTurnState } from "../voice/VoiceRuntime"; // Phase 8.4 Turn Control
+import { Button } from "../../components/ui/button";
+import { Orb, OrbState } from "../../components/ui/orb";
+import AnimatedGradientBackground from "../../components/ui/animated-gradient-background";
+import HoverRevealCards from "../../components/ui/hover-reveal-cards";
+import { VoiceRuntime, VoiceTurnState } from "../../voice/runtime/VoiceRuntime";
 
 // Local type for UI logic (compatible with OrbState via mapping)
 type AgentState = "idle" | "listening" | "thinking" | "talking" | null;

@@ -1,28 +1,28 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { UIContext } from "../state/uiContext";
+import { UIContext } from "../../state/uiContext";
 // Agent Authority
-import { AgentAdapter } from "../agent/adapter";
-import { UiState } from "../agent/index"; // Import directly from source
+import { AgentAdapter } from "../../agent/adapter";
+import { UiState } from "../../agent/index";
 
-// Pages (renamed to 'views' to avoid Next.js Pages Router conflict)
-import { IdlePage } from "../views/IdlePage";
-import { WelcomePage } from "../views/WelcomePage";
-import { ScanIdPage } from "../views/ScanIdPage";
-import { RoomSelectPage } from "../views/RoomSelectPage";
-import { BookingCollectPage } from "../views/BookingCollectPage";
-import { BookingSummaryPage } from "../views/BookingSummaryPage";
-import { PaymentPage } from "../views/PaymentPage";
-import { CompletePage } from "../views/CompletePage";
-import { LauncherPage } from "../views/LauncherPage";
+// Feature slices
+import { IdlePage } from "../welcome/IdlePage";
+import { WelcomePage } from "../welcome/WelcomePage";
+import { ScanIdPage } from "../checkin/ScanIdPage";
+import { RoomSelectPage } from "../checkin/RoomSelectPage";
+import { BookingCollectPage } from "../checkin/BookingCollectPage";
+import { BookingSummaryPage } from "../checkin/BookingSummaryPage";
+import { PaymentPage } from "../checkin/PaymentPage";
+import { CompletePage } from "../completion/CompletePage";
+import { LauncherPage } from "../launcher/LauncherPage";
 
 // Components
-import { ErrorBanner } from "../components/ErrorBanner";
-import { BackButton } from "../components/BackButton";
-import { CaptionsOverlay } from "../components/CaptionsOverlay";
-import { DevToolbar } from "../components/DevToolbar";
-import { getTenantSlug } from "../services/tenantContext";
+import { ErrorBanner } from "../../components/ErrorBanner";
+import { BackButton } from "../../components/BackButton";
+import { CaptionsOverlay } from "../../components/CaptionsOverlay";
+import { DevToolbar } from "../../components/DevToolbar";
+import { getTenantSlug } from "../../services/tenant/tenantContext";
 
 const App: React.FC = () => {
   // Local UI State (Renderer only)

@@ -1,13 +1,19 @@
 import { Intent } from "@contracts/intents";
 import { UiState, VOICE_COMMAND_MAP, STATE_INPUT_MODES, STATE_SPEECH_MAP } from "./index";
-import { VoiceRuntime } from "../voice/VoiceRuntime";
-import { VoiceEvent } from "../voice/voice.types";
-import { SpeechOutputController } from "../voice/SpeechOutputController";
-import { TTSController } from "../voice/TTSController";
+import { VoiceRuntime } from "../voice/runtime/VoiceRuntime";
+import { VoiceEvent } from "../voice/types";
+import { TTSController } from "../voice/tts/TTSController";
 import { StateMachine } from "../state/uiState.machine";
 import { UIState } from "@contracts/backend.contract";
-import { buildTenantApiUrl, getTenantHeaders } from "../services/tenantContext";
-import { getTenant } from "../services/tenantContext";
+import { buildTenantApiUrl, getTenantHeaders } from "../services/tenant/tenantContext";
+import { getTenant } from "../services/tenant/tenantContext";
+import {
+    analyzeSentiment as _analyzeSentiment,
+    mapIntentToEvent as _mapIntentToEvent,
+    isAffirmative as _isAffirmative,
+    isNegative as _isNegative,
+    Sentiment,
+} from "./voiceUtils";
 
 /**
  * AgentAdapter (Singleton) - Phase 9.4: TTS UX, Barge-In & Audio Authority
@@ -51,7 +57,7 @@ type VoiceTelemetryEvent =
     | "VOICE_RATE_LIMITED"
     | "VOICE_SESSION_ERROR";
 
-type Sentiment = 'POSITIVE' | 'NEUTRAL' | 'FRUSTRATED' | 'URGENT';
+// Sentiment type is imported from ./voiceUtils
 
 class AgentAdapterService {
     private state: UiState = "IDLE";
@@ -93,27 +99,9 @@ class AgentAdapterService {
         });
     }
 
-    // 1. THE SENTIMENT ENGINE 🧠
-    // Quick, local analysis to catch anger instantly
+    // Delegate to voiceUtils (extracted pure function)
     private analyzeSentiment(text: string): Sentiment {
-        const lower = text.toLowerCase();
-
-        // A. Immediate Escalation Keywords
-        const urgentWords = ['manager', 'human', 'supervisor', 'emergency', 'shutup', 'shut up'];
-        if (urgentWords.some(w => lower.includes(w))) return 'URGENT';
-
-        // B. Frustration Keywords
-        const badWords = [
-            'stupid', 'hate', 'broken', 'doesn\'t work', 'confused',
-            'ridiculous', 'slow', 'shit', 'damn', 'useless', 'wrong'
-        ];
-        if (badWords.some(w => lower.includes(w))) return 'FRUSTRATED';
-
-        // C. Positive/Neutral
-        const goodWords = ['thanks', 'good', 'great', 'cool', 'perfect'];
-        if (goodWords.some(w => lower.includes(w))) return 'POSITIVE';
-
-        return 'NEUTRAL';
+        return _analyzeSentiment(text);
     }
 
     // 3. ESCALATION ROUTINE 🚨
@@ -391,61 +379,9 @@ class AgentAdapterService {
         return stateCommands[transcript] || null;
     }
 
-    // HELPER: Map LLM "fuzzy" intents to Strict Machine Events
+    // Delegate to voiceUtils (extracted pure function)
     private mapIntentToEvent(llmIntent: string): string {
-        const upper = (llmIntent || '').toUpperCase().trim();
-
-        // Explicit LLM intent enum mapping (backend/contracts.ts)
-        switch (upper) {
-            case 'CHECK_IN':
-                return 'CHECK_IN_SELECTED';
-            case 'BOOK_ROOM':
-                return 'BOOK_ROOM_SELECTED';
-            case 'RECOMMEND_ROOM':
-                // Move forward from ROOM_SELECT to booking flow.
-                // Room data selection remains a separate concern.
-                return 'ROOM_SELECTED';
-            case 'HELP':
-                return 'HELP_SELECTED';
-            case 'SCAN_ID':
-                return 'SCAN_COMPLETED';
-            case 'PAYMENT':
-                return 'CONFIRM_PAYMENT';
-            case 'WELCOME':
-                return 'CANCEL_REQUESTED';
-            case 'IDLE':
-                return 'RESET';
-            case 'SELECT_ROOM':
-                return this.state === 'ROOM_SELECT' ? 'ROOM_SELECTED' : 'SELECT_ROOM';
-            case 'PROVIDE_GUESTS':
-            case 'PROVIDE_DATES':
-            case 'PROVIDE_NAME':
-            case 'CONFIRM_BOOKING':
-            case 'MODIFY_BOOKING':
-            case 'CANCEL_BOOKING':
-            case 'ASK_ROOM_DETAIL':
-            case 'ASK_PRICE':
-                return upper;
-            case 'REPEAT':
-            case 'GENERAL_QUERY':
-            case 'UNKNOWN':
-                return 'GENERAL_QUERY';
-        }
-
-        // Fuzzy fallback mapping
-        if (upper.includes('CHECK_IN') || upper.includes('RESERVATION')) return 'CHECK_IN_SELECTED';
-        if (upper.includes('BOOK') || upper.includes('NEW_RESERVATION')) return 'BOOK_ROOM_SELECTED';
-        if (upper.includes('HELP') || upper.includes('SUPPORT')) return 'HELP_SELECTED';
-        if (upper.includes('SCAN')) return 'SCAN_COMPLETED';
-        if (upper.includes('PAYMENT') || upper.includes('PAY')) return 'CONFIRM_PAYMENT';
-        if (upper.includes('WELCOME') || upper.includes('HOME') || upper.includes('START')) return 'CANCEL_REQUESTED';
-        if (upper.includes('CANCEL')) return 'CANCEL_BOOKING';
-        if (upper.includes('MODIFY') || upper.includes('CHANGE')) return 'MODIFY_BOOKING';
-        if (upper.includes('DATE')) return 'PROVIDE_DATES';
-        if (upper.includes('GUEST')) return 'PROVIDE_GUESTS';
-        if (upper.includes('NAME')) return 'PROVIDE_NAME';
-
-        return 'GENERAL_QUERY';
+        return _mapIntentToEvent(llmIntent, this.state);
     }
 
     /**
@@ -675,14 +611,13 @@ class AgentAdapterService {
         return null;
     }
 
+    // Delegate to voiceUtils (extracted pure functions)
     private isAffirmative(text: string): boolean {
-        const t = (text || "").toLowerCase();
-        return /\b(yes|yeah|yep|confirm|sure|ok|okay|proceed|cancel it|do it)\b/.test(t);
+        return _isAffirmative(text);
     }
 
     private isNegative(text: string): boolean {
-        const t = (text || "").toLowerCase();
-        return /\b(no|nope|dont|don't|not now|continue|resume|go on)\b/.test(t);
+        return _isNegative(text);
     }
 
     private resolveNextStateFromIntent(currentState: UiState, intent: string): UiState {

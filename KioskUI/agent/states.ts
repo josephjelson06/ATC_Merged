@@ -1,0 +1,102 @@
+import { Intent } from "@contracts/intents";
+
+// Minimal State Definition
+export type UiState =
+    | "IDLE"
+    | "WELCOME"
+    | "AI_CHAT"
+    | "MANUAL_MENU"
+    | "SCAN_ID"
+    | "ROOM_SELECT"
+    | "BOOKING_COLLECT"
+    | "BOOKING_SUMMARY"
+    | "PAYMENT"
+    | "KEY_DISPENSING"
+    | "COMPLETE"
+    | "ERROR";
+
+export type InputMode = "VOICE" | "TOUCH";
+
+// Allowed Input Modes per State
+export const STATE_INPUT_MODES: Record<UiState, InputMode[]> = {
+    IDLE: [],
+    WELCOME: ["VOICE", "TOUCH"],
+    AI_CHAT: ["VOICE", "TOUCH"],
+    MANUAL_MENU: ["VOICE", "TOUCH"],
+    SCAN_ID: ["TOUCH"],
+    ROOM_SELECT: ["VOICE", "TOUCH"],
+    BOOKING_COLLECT: ["VOICE", "TOUCH"],
+    BOOKING_SUMMARY: ["VOICE", "TOUCH"],
+    PAYMENT: ["TOUCH"],
+    KEY_DISPENSING: [],
+    COMPLETE: ["TOUCH"],
+    ERROR: ["TOUCH"],
+};
+
+// Strict State Transition Table
+export const TRANSITION_TABLE: Record<UiState, Partial<Record<Intent, UiState>>> = {
+    IDLE: {
+        PROXIMITY_DETECTED: "WELCOME",
+    },
+    WELCOME: {
+        TOUCH_SELECTED: "MANUAL_MENU",
+        VOICE_STARTED: "AI_CHAT",
+        BOOK_ROOM_SELECTED: "ROOM_SELECT",
+    },
+    AI_CHAT: {
+        CHECK_IN_SELECTED: "SCAN_ID",
+        BOOK_ROOM_SELECTED: "ROOM_SELECT",
+        BACK_REQUESTED: "WELCOME",
+        CANCEL_REQUESTED: "WELCOME",
+    },
+    MANUAL_MENU: {
+        CHECK_IN_SELECTED: "SCAN_ID",
+        BOOK_ROOM_SELECTED: "ROOM_SELECT",
+        BACK_REQUESTED: "WELCOME",
+        CANCEL_REQUESTED: "WELCOME",
+    },
+    SCAN_ID: {
+        BACK_REQUESTED: "MANUAL_MENU",
+        CANCEL_REQUESTED: "WELCOME",
+    },
+    ROOM_SELECT: {
+        ROOM_SELECTED: "BOOKING_COLLECT",
+        BACK_REQUESTED: "MANUAL_MENU",
+        CANCEL_REQUESTED: "WELCOME",
+    },
+    BOOKING_COLLECT: {
+        PROVIDE_GUESTS: "BOOKING_COLLECT",
+        PROVIDE_DATES: "BOOKING_COLLECT",
+        PROVIDE_NAME: "BOOKING_COLLECT",
+        SELECT_ROOM: "BOOKING_COLLECT",
+        ASK_ROOM_DETAIL: "BOOKING_COLLECT",
+        ASK_PRICE: "BOOKING_COLLECT",
+        GENERAL_QUERY: "BOOKING_COLLECT",
+        MODIFY_BOOKING: "BOOKING_COLLECT",
+        CONFIRM_BOOKING: "BOOKING_SUMMARY",
+        CANCEL_BOOKING: "ROOM_SELECT",
+        BACK_REQUESTED: "ROOM_SELECT",
+        HELP_SELECTED: "BOOKING_COLLECT",
+        RESET: "IDLE",
+    },
+    BOOKING_SUMMARY: {
+        CONFIRM_PAYMENT: "PAYMENT",
+        MODIFY_BOOKING: "BOOKING_COLLECT",
+        BACK_REQUESTED: "BOOKING_COLLECT",
+        CANCEL_BOOKING: "WELCOME",
+        RESET: "IDLE",
+    },
+    PAYMENT: {
+        BACK_REQUESTED: "ROOM_SELECT",
+        CANCEL_REQUESTED: "WELCOME",
+    },
+    KEY_DISPENSING: {},
+    COMPLETE: {
+        PROXIMITY_DETECTED: "WELCOME",
+    },
+    ERROR: {
+        CANCEL_REQUESTED: "WELCOME",
+        TOUCH_SELECTED: "WELCOME",
+        BACK_REQUESTED: "WELCOME",
+    },
+};

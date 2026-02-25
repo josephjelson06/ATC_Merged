@@ -2,7 +2,7 @@ import dynamic from "next/dynamic";
 
 // The entire Kiosk app is client-only (browser APIs: AudioContext, WebSocket, TTS).
 // We disable SSR entirely so Next.js never attempts to render it on the server.
-const App = dynamic(() => import("../app/App"), {
+const KioskApp = dynamic(() => import("../features/kiosk/KioskApp"), {
   ssr: false,
   loading: () => (
     <div
@@ -24,5 +24,5 @@ const App = dynamic(() => import("../app/App"), {
 });
 
 export default function RootPage() {
-  return <App />;
+  return <KioskApp />;
 }

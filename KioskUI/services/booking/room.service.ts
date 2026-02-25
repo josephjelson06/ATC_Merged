@@ -1,4 +1,4 @@
-import { buildTenantApiUrl, getTenantHeaders } from "./tenantContext";
+import { buildTenantApiUrl, getTenantHeaders } from "../tenant/tenantContext";
 import type { RoomDTO } from "@contracts/api.contract";
 
 export type { RoomDTO };

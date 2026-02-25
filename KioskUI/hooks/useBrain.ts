@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { sendToBrain, onBrainResponse, resetSession, BrainResponse } from "../services/brain.service";
+import { sendToBrain, onBrainResponse, resetSession, BrainResponse } from "../services/booking/brain.service";
 import { useUIState } from "../state/uiContext";
 
 /**

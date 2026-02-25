@@ -1,7 +1,7 @@
-import React from 'react';
-import { useUIState } from '../state/uiContext';
-import { useFadeIn } from '../hooks/useAnimation';
-import { ParticleWave } from '../components/ui/particle-wave';
+import React from "react";
+import { useUIState } from "../../state/uiContext";
+import { useFadeIn } from "../../hooks/useAnimation";
+import { ParticleWave } from "../../components/ui/particle-wave";
 
 export const IdlePage: React.FC = () => {
   const { emit } = useUIState();
@@ -10,7 +10,7 @@ export const IdlePage: React.FC = () => {
   return (
     <div
       className="relative h-screen w-full overflow-hidden bg-slate-900 cursor-pointer"
-      onClick={() => emit('PROXIMITY_DETECTED')}
+      onClick={() => emit("PROXIMITY_DETECTED")}
     >
       {/* Background Layer */}
       <div className="absolute inset-0 z-0">
@@ -22,7 +22,9 @@ export const IdlePage: React.FC = () => {
         {/* We use pointer-events-none to let clicks pass through to container, but text is selectable if we wanted. 
             Here the container click is primary interaction. */}
 
-        <div className={`text-center transform transition-all duration-1000 ${fade}`}>
+        <div
+          className={`text-center transform transition-all duration-1000 ${fade}`}
+        >
           <h1 className="text-8xl font-thin tracking-tighter text-white mb-6">
             NEXUS
             <span className="text-blue-500 font-bold">.</span>

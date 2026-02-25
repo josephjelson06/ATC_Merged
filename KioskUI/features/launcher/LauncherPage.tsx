@@ -1,5 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { buildKioskApiUrl, setTenantContext, type TenantPayload } from "../services/tenantContext";
+import {
+  buildKioskApiUrl,
+  setTenantContext,
+  type TenantPayload,
+} from "../../services/tenant/tenantContext";
 
 interface LauncherPageProps {
   onTenantSelected?: () => void;
@@ -11,7 +15,9 @@ interface TenantLauncherDTO {
   logo_url?: string | null;
 }
 
-export const LauncherPage: React.FC<LauncherPageProps> = ({ onTenantSelected }) => {
+export const LauncherPage: React.FC<LauncherPageProps> = ({
+  onTenantSelected,
+}) => {
   const [tenants, setTenants] = useState<TenantLauncherDTO[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
@@ -67,9 +73,13 @@ export const LauncherPage: React.FC<LauncherPageProps> = ({ onTenantSelected }) 
     <div className="min-h-screen w-full bg-slate-950 text-white flex flex-col">
       <div className="mx-auto w-full max-w-6xl px-6 py-10 md:py-14">
         <header className="mb-10 text-center">
-          <p className="text-xs uppercase tracking-[0.28em] text-cyan-300/80 mb-3">Kiosk Launcher</p>
+          <p className="text-xs uppercase tracking-[0.28em] text-cyan-300/80 mb-3">
+            Kiosk Launcher
+          </p>
           <h1 className="text-3xl md:text-5xl font-light mb-3">Select Hotel</h1>
-          <p className="text-slate-400">Choose a property to start the kiosk session.</p>
+          <p className="text-slate-400">
+            Choose a property to start the kiosk session.
+          </p>
         </header>
 
         {loading ? (
@@ -95,12 +105,20 @@ export const LauncherPage: React.FC<LauncherPageProps> = ({ onTenantSelected }) 
               >
                 <div className="h-14 w-14 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center mb-5 overflow-hidden">
                   {tenant.logo_url ? (
-                    <img src={tenant.logo_url} alt={`${tenant.name} logo`} className="h-full w-full object-cover" />
+                    <img
+                      src={tenant.logo_url}
+                      alt={`${tenant.name} logo`}
+                      className="h-full w-full object-cover"
+                    />
                   ) : (
-                    <span className="text-xl text-cyan-200">{tenant.name.charAt(0).toUpperCase()}</span>
+                    <span className="text-xl text-cyan-200">
+                      {tenant.name.charAt(0).toUpperCase()}
+                    </span>
                   )}
                 </div>
-                <h2 className="text-xl font-medium mb-1 group-hover:text-cyan-200">{tenant.name}</h2>
+                <h2 className="text-xl font-medium mb-1 group-hover:text-cyan-200">
+                  {tenant.name}
+                </h2>
                 <p className="text-sm text-slate-400">{tenant.slug}</p>
               </button>
             ))}

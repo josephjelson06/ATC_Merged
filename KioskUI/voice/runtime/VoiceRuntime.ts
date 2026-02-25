@@ -1,8 +1,8 @@
-import { VoiceEvent } from "./voice.types";
-import { AudioCapture } from "./audioCapture";
-import { DeepgramClient } from "./deepgramClient";
-import { normalizeTranscript } from "./normalizeTranscript";
-import { TTSController } from "./TTSController";
+import { VoiceEvent } from "../types";
+import { AudioCapture } from "../audio/audioCapture";
+import { DeepgramClient } from "../stt/deepgramClient";
+import { normalizeTranscript } from "../utils/normalizeTranscript";
+import { TTSController } from "../tts/TTSController";
 
 /**
  * Voice Runtime (Phase 10 - Production Hardening)

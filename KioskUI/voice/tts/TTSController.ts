@@ -1,33 +1,49 @@
 /**
- * TTS Runtime (Phase 9.1)
+ * TTS Controller (Phase 9.4)
  * 
- * Singleton Text-to-Speech engine using Web Speech API.
+ * Audio Authority Model - strict priority control for TTS.
  * 
- * RULE: TTS does NOT decide what to say.
- *       It only speaks text explicitly provided by the Agent layer.
+ * Rules:
+ * - Single active audio source (no overlapping)
+ * - Cancelable mid-utterance (instant barge-in)
+ * - Promise-safe (no race conditions)
+ * - STT always has higher priority than TTS
  * 
- * Features:
- * - One utterance at a time
- * - Cancel existing speech before starting new one
- * - Emit lifecycle events
+ * Audio Authority Table:
+ * | Event               | Action                    |
+ * |---------------------|---------------------------|
+ * | User starts speaking| Immediately stop TTS      |
+ * | TTS playing         | STT still listens         |
+ * | New Agent state     | Cancel any existing TTS   |
+ * | ERROR / CANCEL      | Hard stop all audio       |
  */
 
-import { TtsEvent, TtsState } from "./tts.types";
+import { TtsEvent, TtsState } from "../types";
 
-class TtsRuntimeService {
+type TTSQueueItem = {
+    text: string;
+    resolve: () => void;
+    reject: (error: Error) => void;
+};
+
+class TTSControllerService {
     private listeners: ((event: TtsEvent) => void)[] = [];
     private state: TtsState = "IDLE";
     private currentUtterance: SpeechSynthesisUtterance | null = null;
     private selectedVoice: SpeechSynthesisVoice | null = null;
+    private pendingQueue: TTSQueueItem[] = [];
+    private isCancelling: boolean = false;
 
     constructor() {
-        console.log("[TtsRuntime] Initialized (Phase 9.1 - Web Speech API)");
-        this.initVoice();
+        console.log("[TTSController] Initialized (Phase 9.4 - Audio Authority)");
+        // Guard against SSR/build-time execution in Next.js
+        if (typeof window !== 'undefined') {
+            this.initVoice();
+        }
     }
 
     /**
      * Select a stable English voice.
-     * Called on init and after voices load.
      */
     private initVoice(): void {
         const synth = window.speechSynthesis;
@@ -35,18 +51,17 @@ class TtsRuntimeService {
         const loadVoices = () => {
             const voices = synth.getVoices();
 
-            // Prefer Google or Microsoft English voices for quality
+            // Prefer high-quality voices
             this.selectedVoice = voices.find(v =>
                 v.lang.startsWith('en') &&
-                (v.name.includes('Google') || v.name.includes('Microsoft'))
+                (v.name.includes('Google') || v.name.includes('Microsoft') || v.name.includes('Samantha'))
             ) || voices.find(v => v.lang.startsWith('en')) || voices[0];
 
             if (this.selectedVoice) {
-                console.log(`[TtsRuntime] Selected voice: ${this.selectedVoice.name}`);
+                console.log(`[TTSController] Voice: ${this.selectedVoice.name}`);
             }
         };
 
-        // Voices may already be loaded or need to wait
         if (synth.getVoices().length > 0) {
             loadVoices();
         } else {
@@ -55,21 +70,18 @@ class TtsRuntimeService {
     }
 
     /**
-     * Speak text. Cancels any existing speech first.
+     * Speak text with audio authority.
+     * Cancels any existing speech first. Promise-safe.
      */
     public async speak(text: string): Promise<void> {
-        if (!text || !text.trim()) {
-            console.warn("[TtsRuntime] Empty text, ignoring.");
-            return;
-        }
+        if (!text || !text.trim()) return;
 
-        // Cancel existing speech
-        this.stop();
+        // Cancel any existing speech immediately
+        this.hardStop();
 
         return new Promise((resolve, reject) => {
             const synth = window.speechSynthesis;
 
-            // Create utterance
             const utterance = new SpeechSynthesisUtterance(text.trim());
 
             if (this.selectedVoice) {
@@ -80,23 +92,27 @@ class TtsRuntimeService {
             utterance.pitch = 1.0;
             utterance.volume = 1.0;
 
-            // Event handlers
             utterance.onstart = () => {
                 this.state = "SPEAKING";
-                console.log(`[TtsRuntime] Speaking: "${text.substring(0, 50)}..."`);
+                this.isCancelling = false;
+                console.log(`[TTSController] Speaking: "${text.substring(0, 40)}..."`);
                 this.emit({ type: "TTS_STARTED", text });
             };
 
             utterance.onend = () => {
                 this.state = "IDLE";
                 this.currentUtterance = null;
-                console.log("[TtsRuntime] Speech ended");
-                this.emit({ type: "TTS_ENDED" });
+
+                if (!this.isCancelling) {
+                    console.log("[TTSController] Speech ended");
+                    this.emit({ type: "TTS_ENDED" });
+                }
+
                 resolve();
             };
 
             utterance.onerror = (event) => {
-                // Ignore 'interrupted' errors (expected when cancelled)
+                // Ignore 'interrupted' and 'canceled' - expected during barge-in
                 if (event.error === 'interrupted' || event.error === 'canceled') {
                     this.state = "IDLE";
                     this.currentUtterance = null;
@@ -106,7 +122,7 @@ class TtsRuntimeService {
 
                 this.state = "IDLE";
                 this.currentUtterance = null;
-                console.error(`[TtsRuntime] Error: ${event.error}`);
+                console.error(`[TTSController] Error: ${event.error}`);
                 this.emit({ type: "TTS_ERROR", error: event.error });
                 reject(new Error(event.error));
             };
@@ -117,29 +133,48 @@ class TtsRuntimeService {
     }
 
     /**
-     * Stop current speech immediately.
+     * Instant barge-in: Stop TTS immediately (<50ms target).
+     * Called when user starts speaking.
      */
-    public stop(): void {
+    public bargeIn(): void {
+        if (this.isSpeaking()) {
+            console.log("[TTSController] BARGE-IN: Stopping TTS instantly");
+            this.hardStop();
+            this.emit({ type: "TTS_CANCELLED" });
+        }
+    }
+
+    /**
+     * Hard stop all audio. Used for:
+     * - Barge-in
+     * - State change
+     * - Error
+     * - Session timeout
+     * - App unmount
+     */
+    public hardStop(): void {
         const synth = window.speechSynthesis;
 
+        this.isCancelling = true;
+
+        // Cancel immediately
         if (synth.speaking || synth.pending) {
-            console.log("[TtsRuntime] Cancelling speech");
             synth.cancel();
-
-            if (this.state === "SPEAKING") {
-                this.emit({ type: "TTS_CANCELLED" });
-            }
-
-            this.state = "IDLE";
-            this.currentUtterance = null;
         }
+
+        // Clear queue
+        this.pendingQueue.forEach(item => item.resolve());
+        this.pendingQueue = [];
+
+        this.state = "IDLE";
+        this.currentUtterance = null;
     }
 
     /**
      * Check if currently speaking.
      */
     public isSpeaking(): boolean {
-        return this.state === "SPEAKING";
+        return this.state === "SPEAKING" || window.speechSynthesis.speaking;
     }
 
     /**
@@ -160,9 +195,8 @@ class TtsRuntimeService {
     }
 
     private emit(event: TtsEvent): void {
-        console.log(`[TtsRuntime] Emitting: ${event.type}`);
         this.listeners.forEach(cb => cb(event));
     }
 }
 
-export const TtsRuntime = new TtsRuntimeService();
+export const TTSController = new TTSControllerService();

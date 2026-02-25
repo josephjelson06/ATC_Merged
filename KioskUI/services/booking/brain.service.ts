@@ -9,8 +9,8 @@
  * It NEVER decides flow or navigation.
  */
 
-import { AgentAdapter } from "../agent/adapter";
-import { buildTenantApiUrl, getTenantHeaders } from "./tenantContext";
+import { AgentAdapter } from "../../agent/adapter";
+import { buildTenantApiUrl, getTenantHeaders } from "../tenant/tenantContext";
 import type { BookingChatResponseDTO, ChatResponseDTO } from "@contracts/api.contract";
 
 // States that use the booking endpoint

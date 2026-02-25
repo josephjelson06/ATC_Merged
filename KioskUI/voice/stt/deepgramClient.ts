@@ -3,7 +3,7 @@ type EndOfTurnCallback = (accumulatedTranscript: string, confidence?: number) =>
 type SpeechStartedCallback = () => void;
 type ErrorCallback = (error: Error) => void;
 
-import { AudioCapture } from "./audioCapture";
+import { AudioCapture } from "../audio/audioCapture";
 
 const DG_API_KEY = process.env.NEXT_PUBLIC_DEEPGRAM_API_KEY || "";
 const DG_MODEL = "nova-2";
