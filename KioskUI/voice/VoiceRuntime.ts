@@ -119,6 +119,14 @@ class VoiceRuntimeService {
             }
         });
 
+        DeepgramClient.onError((error) => {
+            console.warn("[VoiceRuntime] Deepgram client error:", error.message);
+            this.emit({ type: "VOICE_SESSION_ERROR" });
+            if (this.isListeningActive) {
+                this.stopListening();
+            }
+        });
+
         // Final transcript
         DeepgramClient.onEndOfTurn((accumulatedTranscript, confidence) => {
             if (this.mode === "listening" && accumulatedTranscript.trim()) {
@@ -315,8 +323,8 @@ class VoiceRuntimeService {
             this.hasReceivedFinalTranscript = false;
             this.sessionStartTime = Date.now();
 
-            DeepgramClient.connect();
             await AudioCapture.start();
+            DeepgramClient.connect(AudioCapture.getSampleRate());
 
             this.startNoSpeechTimer();
             this.startNoResultTimer();

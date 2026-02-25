@@ -15,6 +15,7 @@ from app.schemas.kiosks import (
     KioskHeartbeat,
     KioskRead,
     KioskRoomTypeRead,
+    KioskTenantListItem,
     KioskTenantRead,
     KioskUpdate,
 )
@@ -23,6 +24,7 @@ from app.services.kiosk_service import KioskService
 
 
 router = APIRouter(prefix="/api/hotels/{hotel_id}/kiosks", tags=["Kiosks"])
+kiosk_launcher_router = APIRouter(prefix="/api/kiosk", tags=["Kiosk Public"])
 kiosk_public_router = APIRouter(prefix="/api/kiosk/{slug}", tags=["Kiosk Public"])
 
 
@@ -75,6 +77,18 @@ def update_kiosk(
     if not kiosk:
         raise HTTPException(status_code=404, detail="Kiosk not found")
     return kiosk
+
+
+@kiosk_launcher_router.get("/tenants", response_model=list[KioskTenantListItem])
+def list_kiosk_tenants(
+    db: Session = Depends(get_db),
+):
+    service = KioskService(db)
+    tenants = service.list_tenants_for_kiosk_launcher()
+    return [
+        KioskTenantListItem(slug=tenant.slug, name=tenant.hotel_name, logo_url=None)
+        for tenant in tenants
+    ]
 
 
 @kiosk_public_router.get("/tenant", response_model=KioskTenantRead)

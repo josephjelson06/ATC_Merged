@@ -1,8 +1,6 @@
 import { UIState, ChatMessage } from '@contracts/backend.contract';
 import { UIEventType } from '@contracts/events.contract';
 import { sessionMock } from '../mocks/session.mock';
-import { roomsMock } from '../mocks/rooms.mock';
-import { voiceMock } from '../mocks/voice.mock';
 import { StateMachine } from '../state/uiState.machine';
 
 // --- THE MOCK BACKEND AUTHORITY ---
@@ -55,12 +53,12 @@ class MockBackendService {
       // Inject required data to prevent crashes
       const nextData = { ...this._data };
       if (payload.targetState === 'ROOM_SELECT') {
-        nextData.rooms = require('../mocks/rooms.mock').roomsMock.available_rooms;
+        nextData.rooms = this.resolveRoomsFallback();
       }
       if (payload.targetState === 'PAYMENT') {
         // Fake a room selection if one doesn't exist
         if (!nextData.selectedRoom) {
-          const rooms = require('../mocks/rooms.mock').roomsMock.available_rooms;
+          const rooms = this.resolveRoomsFallback();
           nextData.selectedRoom = rooms[0];
           nextData.bill = { nights: 2, total: "450.00", currencySymbol: "$" };
         }
@@ -83,7 +81,7 @@ class MockBackendService {
 
     // Load Rooms
     if (nextState === 'ROOM_SELECT' && this._state !== 'ROOM_SELECT') {
-      nextData.rooms = roomsMock.available_rooms;
+      nextData.rooms = this.resolveRoomsFallback();
     }
 
     // Handle Selection Logic
@@ -106,7 +104,7 @@ class MockBackendService {
 
     // Scan Completion Logic
     if (type === 'SCAN_COMPLETED') {
-      nextData.rooms = roomsMock.available_rooms;
+      nextData.rooms = this.resolveRoomsFallback();
       nextData.user = sessionMock.user;
     }
 
@@ -184,6 +182,13 @@ class MockBackendService {
       case 'COMPLETE': return { currentStep: 4, totalSteps: 4, steps };
       default: return null;
     }
+  }
+
+  private resolveRoomsFallback() {
+    if (Array.isArray(this._data?.rooms) && this._data.rooms.length > 0) {
+      return this._data.rooms;
+    }
+    return [];
   }
 
 

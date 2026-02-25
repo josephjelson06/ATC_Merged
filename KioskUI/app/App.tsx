@@ -13,12 +13,14 @@ import { BookingCollectPage } from '../pages/BookingCollectPage';
 import { BookingSummaryPage } from '../pages/BookingSummaryPage';
 import { PaymentPage } from '../pages/PaymentPage';
 import { CompletePage } from '../pages/CompletePage';
+import { LauncherPage } from '../pages/LauncherPage';
 
 // Components
 import { ErrorBanner } from '../components/ErrorBanner';
 import { BackButton } from '../components/BackButton';
 import { CaptionsOverlay } from '../components/CaptionsOverlay';
 import { DevToolbar } from '../components/DevToolbar';
+import { getTenantSlug } from '../services/tenantContext';
 
 const App: React.FC = () => {
   // Local UI State (Renderer only)
@@ -27,6 +29,24 @@ const App: React.FC = () => {
   const [data, setData] = useState<any>({});
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [currentPath, setCurrentPath] = useState<string>(() => window.location.pathname || '/');
+
+  const navigateTo = (path: string, replace = false) => {
+    if (window.location.pathname !== path) {
+      if (replace) {
+        window.history.replaceState({}, '', path);
+      } else {
+        window.history.pushState({}, '', path);
+      }
+    }
+    setCurrentPath(path);
+  };
+
+  useEffect(() => {
+    const onPopState = () => setCurrentPath(window.location.pathname || '/');
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
 
   // 1. CONNECT TO AGENT BRAIN
   useEffect(() => {
@@ -70,6 +90,23 @@ const App: React.FC = () => {
   };
 
   const effectiveState = forcedState ?? state;
+  const hasTenant = Boolean(getTenantSlug().trim());
+
+  useEffect(() => {
+    if (!hasTenant && currentPath !== '/') {
+      navigateTo('/', true);
+      return;
+    }
+
+    if (hasTenant && currentPath === '/') {
+      navigateTo('/app', true);
+    }
+  }, [currentPath, hasTenant]);
+
+  const handleTenantSelected = () => {
+    AgentAdapter.dispatch('RESET' as any);
+    navigateTo('/app');
+  };
 
   // 3. DUMB ROUTER (State -> Component)
   // CRITICAL: This is a pure switch on Agent State. No logic allowed.
@@ -112,6 +149,9 @@ const App: React.FC = () => {
 
   return (
     <UIContext.Provider value={{ state, data, emit, loading, transcript: '' }}>
+      {!hasTenant ? (
+        <LauncherPage onTenantSelected={handleTenantSelected} />
+      ) : (
       <div className="antialiased w-full h-full relative">
 
         {/* Global Navigation Controls (Visibility controlled implicitly by page rendering, backing is Agent driven) */}
@@ -142,6 +182,7 @@ const App: React.FC = () => {
           currentState={effectiveState as any}
         />
       </div>
+      )}
     </UIContext.Provider>
   );
 };

@@ -92,3 +92,6 @@ class KioskService:
             .order_by(RoomType.created_at.desc())
             .all()
         )
+
+    def list_tenants_for_kiosk_launcher(self) -> list[Tenant]:
+        return self.db.query(Tenant).order_by(Tenant.hotel_name.asc()).all()

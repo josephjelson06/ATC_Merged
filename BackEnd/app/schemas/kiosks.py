@@ -42,6 +42,12 @@ class KioskTenantRead(ORMBase):
     slug: str
 
 
+class KioskTenantListItem(ORMBase):
+    slug: str
+    name: str
+    logo_url: str | None = None
+
+
 class KioskRoomTypeRead(ORMBase):
     id: UUID
     name: str

@@ -6,13 +6,18 @@ import re
 import threading
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
+from decimal import Decimal, InvalidOperation
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
+from app.models.booking import Booking
+from app.models.hotel_config import HotelConfig
+from app.models.room_type import RoomType
 from app.models.tenant import Tenant
 from app.schemas.kiosk_chat import (
     KioskBookingChatResponse,
@@ -40,7 +45,13 @@ class KioskBrainService:
     _GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
     _MAX_HISTORY_MESSAGES = 10
     _SESSION_TTL = timedelta(minutes=5)
-    _BOOKING_REQUIRED_SLOTS = ("guests", "checkInDate", "checkOutDate", "guestName")
+    _BOOKING_REQUIRED_SLOTS = (
+        "roomType",
+        "guests",
+        "checkInDate",
+        "checkOutDate",
+        "guestName",
+    )
 
     _GENERAL_INTENTS = {
         "CHECK_IN",
@@ -104,8 +115,12 @@ class KioskBrainService:
 
         session = self._get_or_create_session(session_id, booking=False)
         history_text = self._format_history(session.history)
+        prompt_context = self._build_prompt_context(tenant)
         system_prompt = self._build_general_prompt(
-            tenant.hotel_name, current_state, history_text
+            hotel_name=tenant.hotel_name,
+            current_state=current_state,
+            history_text=history_text,
+            prompt_context=prompt_context,
         )
 
         llm_result = self._invoke_llm(
@@ -164,7 +179,8 @@ class KioskBrainService:
                 persistedBookingId=None,
             )
 
-        room_lines = self._format_room_inventory(tenant.slug)
+        prompt_context = self._build_prompt_context(tenant)
+        room_lines = prompt_context["room_inventory"]
         history_text = self._format_history(session.history)
         missing_before = self._missing_slots(session.slots)
         system_prompt = self._build_booking_prompt(
@@ -174,6 +190,7 @@ class KioskBrainService:
             room_inventory=room_lines,
             current_slots=session.slots,
             missing_slots=missing_before,
+            prompt_context=prompt_context,
         )
 
         llm_result = self._invoke_llm(
@@ -207,6 +224,13 @@ class KioskBrainService:
         self._merge_slots(session.slots, extracted_slots)
         missing_after = self._missing_slots(session.slots)
         is_complete = len(missing_after) == 0
+        persisted_booking_id: str | None = None
+        if is_complete:
+            persisted_booking_id = self._persist_booking(
+                tenant=tenant,
+                session_id=session_id,
+                slots=session.slots,
+            )
 
         next_slot = (
             str(llm_next_slot).strip()
@@ -223,7 +247,7 @@ class KioskBrainService:
             missingSlots=missing_after,
             nextSlotToAsk=next_slot,
             isComplete=is_complete,
-            persistedBookingId=None,
+            persistedBookingId=persisted_booking_id,
         )
 
         self._append_history(session, "user", transcript)
@@ -314,20 +338,31 @@ class KioskBrainService:
         hotel_name: str,
         current_state: str,
         history_text: str,
+        prompt_context: dict[str, Any],
     ) -> str:
         intents = ", ".join(sorted(self._GENERAL_INTENTS))
+        amenities = ", ".join(prompt_context["amenities"]) if prompt_context["amenities"] else "None listed"
         return (
             "You are a hotel kiosk concierge assistant.\n"
             f"Hotel: {hotel_name}\n"
             f"Current kiosk state: {current_state}\n"
+            f"Hotel timezone: {prompt_context['timezone']}\n"
+            f"Local datetime: {prompt_context['local_datetime']}\n"
+            f"Time of day: {prompt_context['time_of_day']}\n"
+            f"Check-in time: {prompt_context['check_in_time']}\n"
+            f"Check-out time: {prompt_context['check_out_time']}\n"
+            f"Hotel amenities: {amenities}\n"
             f"Valid intents: {intents}\n\n"
+            "Room inventory:\n"
+            f"{prompt_context['room_inventory']}\n\n"
             "Conversation history:\n"
             f"{history_text}\n\n"
             "Rules:\n"
             "1) Pick exactly one intent from the valid list.\n"
-            "2) speech must be polite and concise (max 2 sentences).\n"
-            "3) confidence must be a number from 0 to 1.\n"
-            "4) If uncertain, use intent UNKNOWN.\n\n"
+            "2) Adapt responses to the local time of day and hotel policy context.\n"
+            "3) speech must be polite and concise (max 2 sentences).\n"
+            "4) confidence must be a number from 0 to 1.\n"
+            "5) If uncertain, use intent UNKNOWN.\n\n"
             "Return JSON only in this shape:\n"
             '{"speech":"string","intent":"VALID_INTENT","confidence":0.0}\n'
         )
@@ -340,16 +375,24 @@ class KioskBrainService:
         room_inventory: str,
         current_slots: dict[str, Any],
         missing_slots: list[str],
+        prompt_context: dict[str, Any],
     ) -> str:
         intents = ", ".join(sorted(self._BOOKING_INTENTS))
         slots_json = json.dumps(current_slots, ensure_ascii=True)
         missing_text = ", ".join(missing_slots) if missing_slots else "none"
-        today = date.today().isoformat()
+        amenities = ", ".join(prompt_context["amenities"]) if prompt_context["amenities"] else "None listed"
+        today = prompt_context["local_date"]
         return (
             "You are a hotel kiosk booking assistant.\n"
             f"Hotel: {hotel_name}\n"
             f"Current kiosk state: {current_state}\n"
             f"Today: {today}\n"
+            f"Hotel timezone: {prompt_context['timezone']}\n"
+            f"Local datetime: {prompt_context['local_datetime']}\n"
+            f"Time of day: {prompt_context['time_of_day']}\n"
+            f"Check-in time: {prompt_context['check_in_time']}\n"
+            f"Check-out time: {prompt_context['check_out_time']}\n"
+            f"Hotel amenities: {amenities}\n"
             f"Valid intents: {intents}\n\n"
             "Room inventory:\n"
             f"{room_inventory}\n\n"
@@ -363,23 +406,235 @@ class KioskBrainService:
             "2) Extract booking slots when spoken by user.\n"
             "3) Slot keys allowed: guests, checkInDate, checkOutDate, guestName, roomType.\n"
             "4) Use ISO dates when possible.\n"
-            "5) If uncertain, use intent UNKNOWN.\n\n"
+            "5) Use room pricing from inventory when summarizing booking totals.\n"
+            "6) If uncertain, use intent UNKNOWN.\n\n"
             "Return JSON only in this shape:\n"
             '{"speech":"string","intent":"VALID_INTENT","confidence":0.0,'
             '"extractedSlots":{"guests":2},"nextSlotToAsk":"checkOutDate","isComplete":false}\n'
         )
 
-    def _format_room_inventory(self, slug: str) -> str:
-        room_types = self.kiosk_service.get_room_types_by_slug(slug)
+    def _build_prompt_context(self, tenant: Tenant) -> dict[str, Any]:
+        room_types = self.kiosk_service.get_room_types_by_slug(tenant.slug)
+        hotel_config = (
+            self.db.query(HotelConfig)
+            .filter(HotelConfig.tenant_id == tenant.id)
+            .first()
+        )
+        timezone = (hotel_config.timezone if hotel_config and hotel_config.timezone else "UTC")
+        local_now = self._get_local_now(timezone)
+        return {
+            "timezone": timezone,
+            "local_datetime": local_now.isoformat(timespec="minutes"),
+            "local_date": local_now.date().isoformat(),
+            "time_of_day": self._time_of_day(local_now.hour),
+            "check_in_time": self._format_check_in_time(
+                hotel_config.check_in_time if hotel_config else None
+            ),
+            "check_out_time": "11:00",
+            "room_inventory": self._format_room_inventory_from_room_types(room_types),
+            "amenities": sorted(
+                {
+                    amenity.strip()
+                    for room in room_types
+                    for amenity in (room.amenities or [])
+                    if isinstance(amenity, str) and amenity.strip()
+                }
+            ),
+        }
+
+    @staticmethod
+    def _get_local_now(timezone: str) -> datetime:
+        try:
+            return datetime.now(ZoneInfo(timezone))
+        except ZoneInfoNotFoundError:
+            return datetime.utcnow()
+
+    @staticmethod
+    def _time_of_day(hour: int) -> str:
+        if hour < 12:
+            return "morning"
+        if hour < 18:
+            return "afternoon"
+        return "evening"
+
+    @staticmethod
+    def _format_check_in_time(value: Any) -> str:
+        if value is None:
+            return "14:00"
+        if hasattr(value, "strftime"):
+            return value.strftime("%H:%M")
+        text = str(value).strip()
+        if not text:
+            return "14:00"
+        return text[:5] if len(text) >= 5 else text
+
+    def _format_room_inventory_from_room_types(self, room_types: list[RoomType]) -> str:
         if not room_types:
             return "- No room types available."
+
         lines: list[str] = []
-        for room in room_types:
+        for room in sorted(room_types, key=lambda item: str(item.name or "").lower()):
             amenities = ", ".join(room.amenities or [])
             price = float(room.price) if room.price is not None else 0.0
             amenity_text = amenities if amenities else "No amenities listed"
             lines.append(f"- {room.name} ({room.code}): {price:.2f} | {amenity_text}")
         return "\n".join(lines)
+
+    def _format_room_inventory(self, slug: str) -> str:
+        room_types = self.kiosk_service.get_room_types_by_slug(slug)
+        return self._format_room_inventory_from_room_types(room_types)
+
+    def _persist_booking(
+        self,
+        tenant: Tenant,
+        session_id: str,
+        slots: dict[str, Any],
+    ) -> str | None:
+        room_type = self._resolve_room_type(tenant.slug, slots.get("roomType"))
+        check_in_date = self._parse_slot_date(slots.get("checkInDate"))
+        check_out_date = self._parse_slot_date(slots.get("checkOutDate"))
+        guest_name = str(slots.get("guestName") or "").strip()
+        guests = self._coerce_guest_count(slots.get("guests") or slots.get("adults"))
+
+        if not room_type or not check_in_date or not check_out_date or not guest_name or not guests:
+            return None
+
+        nights = (check_out_date - check_in_date).days
+        if nights <= 0:
+            return None
+
+        try:
+            room_price = Decimal(str(room_type.price if room_type.price is not None else 0))
+            total_price = (room_price * Decimal(nights)).quantize(Decimal("0.01"))
+        except (InvalidOperation, TypeError, ValueError):
+            total_price = None
+
+        idempotency_key = (
+            f"{tenant.id}:{session_id}:{room_type.id}:"
+            f"{check_in_date.isoformat()}:{check_out_date.isoformat()}"
+        )
+
+        try:
+            existing_booking = (
+                self.db.query(Booking)
+                .filter(
+                    Booking.tenant_id == tenant.id,
+                    Booking.idempotency_key == idempotency_key,
+                )
+                .with_for_update()
+                .first()
+            )
+            if existing_booking:
+                return str(existing_booking.id)
+
+            conflicting = (
+                self.db.query(Booking.id)
+                .filter(
+                    Booking.tenant_id == tenant.id,
+                    Booking.room_type_id == room_type.id,
+                    Booking.status == "CONFIRMED",
+                    Booking.check_in_date < check_out_date,
+                    Booking.check_out_date > check_in_date,
+                )
+                .with_for_update()
+                .first()
+            )
+            if conflicting:
+                LOGGER.warning(
+                    "Booking conflict for tenant=%s room_type=%s check_in=%s check_out=%s",
+                    tenant.id,
+                    room_type.id,
+                    check_in_date,
+                    check_out_date,
+                )
+                return None
+
+            booking = Booking(
+                tenant_id=tenant.id,
+                guest_name=guest_name,
+                check_in_date=check_in_date,
+                check_out_date=check_out_date,
+                adults=guests,
+                children=None,
+                nights=nights,
+                total_price=total_price,
+                session_id=session_id,
+                idempotency_key=idempotency_key,
+                status="DRAFT",
+                room_type_id=room_type.id,
+            )
+            self.db.add(booking)
+            self.db.commit()
+            self.db.refresh(booking)
+            return str(booking.id)
+        except Exception:
+            self.db.rollback()
+            LOGGER.exception("Failed to persist kiosk booking")
+            return None
+
+    def _resolve_room_type(self, slug: str, slot_value: Any) -> RoomType | None:
+        room_types = self.kiosk_service.get_room_types_by_slug(slug)
+        if not room_types:
+            return None
+
+        if isinstance(slot_value, dict):
+            for key in ("code", "name", "id", "roomType", "type"):
+                nested = slot_value.get(key)
+                if nested:
+                    slot_value = nested
+                    break
+
+        candidate = str(slot_value or "").strip().lower()
+        if not candidate:
+            return None
+
+        for room in room_types:
+            if str(room.id) == candidate:
+                return room
+            if str(room.code or "").strip().lower() == candidate:
+                return room
+            if str(room.name or "").strip().lower() == candidate:
+                return room
+
+        for room in room_types:
+            if candidate in str(room.code or "").strip().lower():
+                return room
+            if candidate in str(room.name or "").strip().lower():
+                return room
+
+        return None
+
+    @staticmethod
+    def _parse_slot_date(raw_value: Any) -> date | None:
+        if isinstance(raw_value, date) and not isinstance(raw_value, datetime):
+            return raw_value
+        if isinstance(raw_value, datetime):
+            return raw_value.date()
+        if not isinstance(raw_value, str):
+            return None
+
+        text = raw_value.strip()
+        if not text:
+            return None
+
+        try:
+            return date.fromisoformat(text[:10])
+        except ValueError:
+            pass
+
+        try:
+            parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+            return parsed.date()
+        except ValueError:
+            return None
+
+    @staticmethod
+    def _coerce_guest_count(raw_value: Any) -> int | None:
+        try:
+            value = int(raw_value)
+        except (TypeError, ValueError):
+            return None
+        return value if value > 0 else None
 
     @classmethod
     def _format_history(cls, history: list[dict[str, str]]) -> str:
@@ -574,6 +829,13 @@ class KioskBrainService:
     def _fallback_booking_response(self, transcript: str) -> dict[str, Any]:
         text = transcript.lower()
         extracted: dict[str, Any] = {}
+
+        if "deluxe" in text:
+            extracted["roomType"] = "DELUXE"
+        elif "standard" in text:
+            extracted["roomType"] = "STANDARD"
+        elif "suite" in text or "executive" in text or "presidential" in text:
+            extracted["roomType"] = "SUITE"
 
         guests_match = re.search(
             r"\b(\d{1,2})\s*(guests?|adults?|people|persons?)\b",

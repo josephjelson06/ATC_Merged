@@ -829,6 +829,10 @@ class AgentAdapterService {
 
         console.log(`[AgentAdapter] State Transition: ${previousState} -> ${this.state}`);
 
+        if (nextState === "ROOM_SELECT") {
+            void this.loadRoomsForRoomSelect();
+        }
+
         // Phase 9.4.1: On state change, stop any active TTS and listening
         VoiceRuntime.stopSpeaking();
         VoiceRuntime.stopListening();
@@ -852,6 +856,34 @@ class AgentAdapterService {
                     }
                 }, 100);
             }
+        }
+    }
+
+    private async loadRoomsForRoomSelect(): Promise<void> {
+        try {
+            const roomsUrl = buildTenantApiUrl("rooms");
+            const response = await fetch(roomsUrl, {
+                headers: {
+                    ...getTenantHeaders(),
+                },
+            });
+
+            if (!response.ok) {
+                throw new Error(`Failed to load rooms (${response.status})`);
+            }
+
+            const payload = await response.json();
+            const rooms = Array.isArray(payload)
+                ? payload
+                : (Array.isArray(payload?.rooms) ? payload.rooms : []);
+
+            this.viewData = {
+                ...this.viewData,
+                rooms,
+            };
+            this.notifyListeners();
+        } catch (error) {
+            console.error("[AgentAdapter] Failed to load rooms for ROOM_SELECT:", error);
         }
     }
 
