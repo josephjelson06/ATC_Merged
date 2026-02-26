@@ -11,9 +11,14 @@ import {
   HelpCircle,
   LifeBuoy,
   Monitor,
+  MonitorSmartphone,
   PanelLeftClose,
   PanelLeft,
   X,
+  DoorOpen,
+  ClipboardList,
+  BarChart3,
+  Receipt,
 } from "lucide-react";
 
 interface SidebarProps {
@@ -178,8 +183,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                       )}
                       {hasPerm("hotel:rooms:read") && (
                         <SidebarItem
-                          icon={Building2}
-                          label="Rooms"
+                          icon={DoorOpen}
+                          label="Room Management"
                           active={currentRoute === "rooms"}
                           onClick={() => onNavigate("rooms")}
                           collapsed={isCollapsed}
@@ -196,8 +201,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                       )}
                       {hasPerm("hotel:incidents:read") && (
                         <SidebarItem
-                          icon={LifeBuoy}
-                          label="Incidents"
+                          icon={ClipboardList}
+                          label="Incidents Record"
                           active={currentRoute === "incidents"}
                           onClick={() => onNavigate("incidents")}
                           collapsed={isCollapsed}
@@ -206,7 +211,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                       {hasPerm("hotel:guests:read") && (
                         <SidebarItem
                           icon={Users}
-                          label="Guests"
+                          label="Guest Registry"
                           active={currentRoute === "guests"}
                           onClick={() => onNavigate("guests")}
                           collapsed={isCollapsed}
@@ -218,7 +223,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                       {hasPerm("hotel:users:read") && (
                         <SidebarItem
                           icon={Users}
-                          label="Users & Roles"
+                          label="Staff Registry"
                           active={
                             currentRoute === "user-mgmt" ||
                             currentRoute === "role-mgmt"
@@ -243,15 +248,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                           collapsed={isCollapsed}
                         />
                       )}
-                      {hasPerm("hotel:reports:read") && (
-                        <SidebarItem
-                          icon={FileText}
-                          label="Reports"
-                          active={currentRoute === "hotel-reports"}
-                          onClick={() => onNavigate("hotel-reports")}
-                          collapsed={isCollapsed}
-                        />
-                      )}
+
                       {hasPerm("hotel:settings:read") && (
                         <SidebarItem
                           icon={Shield}
@@ -263,12 +260,19 @@ const Sidebar: React.FC<SidebarProps> = ({
                       )}
                     </SidebarSection>
 
-                    <SidebarSection title="Support" collapsed={isCollapsed}>
+                    <SidebarSection title="Insights" collapsed={isCollapsed}>
                       <SidebarItem
                         icon={HelpCircle}
                         label="Help & Support"
                         active={currentRoute === "help"}
                         onClick={() => onNavigate("help")}
+                        collapsed={isCollapsed}
+                      />
+                      <SidebarItem
+                        icon={BarChart3}
+                        label="Reports"
+                        active={currentRoute === "hotel-reports"}
+                        onClick={() => onNavigate("hotel-reports")}
                         collapsed={isCollapsed}
                       />
                     </SidebarSection>
@@ -299,7 +303,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                       />
                       <SidebarItem
                         icon={Building2}
-                        label="Tenants"
+                        label="Hotels"
                         active={
                           currentRoute === "tenants" ||
                           currentRoute === "tenant-details"
@@ -308,8 +312,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                         collapsed={isCollapsed}
                       />
                       <SidebarItem
-                        icon={Monitor}
-                        label="Kiosks"
+                        icon={MonitorSmartphone}
+                        label="Kiosk Fleet"
                         active={
                           currentRoute === "kiosks" ||
                           currentRoute === "kiosk-details"
@@ -317,15 +321,6 @@ const Sidebar: React.FC<SidebarProps> = ({
                         onClick={() => onNavigate("kiosks")}
                         collapsed={isCollapsed}
                       />
-                      {hasPerm("platform:reports:read") && (
-                        <SidebarItem
-                          icon={FileText}
-                          label="Reports"
-                          active={currentRoute === "reports"}
-                          onClick={() => onNavigate("reports")}
-                          collapsed={isCollapsed}
-                        />
-                      )}
                     </SidebarSection>
 
                     <SidebarSection title="Finance" collapsed={isCollapsed}>
@@ -345,10 +340,19 @@ const Sidebar: React.FC<SidebarProps> = ({
                       />
                       {hasPerm("platform:invoices:read") && (
                         <SidebarItem
-                          icon={CreditCard}
+                          icon={Receipt}
                           label="Invoices"
                           active={currentRoute === "invoices"}
                           onClick={() => onNavigate("invoices")}
+                          collapsed={isCollapsed}
+                        />
+                      )}
+                      {hasPerm("platform:reports:read") && (
+                        <SidebarItem
+                          icon={BarChart3}
+                          label="Reports"
+                          active={currentRoute === "reports"}
+                          onClick={() => onNavigate("reports")}
                           collapsed={isCollapsed}
                         />
                       )}
@@ -383,7 +387,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                       />
                       <SidebarItem
                         icon={Shield}
-                        label="Platform Users"
+                        label="Users Management"
                         active={currentRoute === "users-mgmt"}
                         onClick={() => onNavigate("users-mgmt")}
                         collapsed={isCollapsed}
