@@ -8,21 +8,36 @@ export const ScanIdPage: React.FC = () => {
   const [status, setStatus] = useState<"IDLE" | "ANALYZING" | "APPROVED">(
     "IDLE",
   );
+  const [guestId, setGuestId] = useState<string | null>(null);
+
+  const generateGuestId = () => {
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+    const randomChars =
+      chars.charAt(Math.floor(Math.random() * chars.length)) +
+      chars.charAt(Math.floor(Math.random() * chars.length));
+    const randomNums = Math.floor(1000 + Math.random() * 9000);
+    return `GS-${randomNums}-${randomChars}`;
+  };
 
   const handleCapture = (imageSrc: string) => {
-    // 1. Image Captured
     setStatus("ANALYZING");
     console.log("[ScanPage] Image captured (simulated upload)");
 
-    // 2. Simulate Backend Verification (1.5s delay)
     setTimeout(() => {
+      const newId = generateGuestId();
+      setGuestId(newId);
       setStatus("APPROVED");
 
-      // 3. Move to Next Screen
+      // Give them 3 seconds to read their new ID before advancing
       setTimeout(() => {
-        emit("SCAN_COMPLETED");
-      }, 800);
+        emit("SCAN_COMPLETED", { guestId: newId });
+      }, 3000);
     }, 1500);
+  };
+
+  const handleDemoSkip = () => {
+    const newId = generateGuestId();
+    emit("SCAN_COMPLETED", { guestId: newId });
   };
 
   return (
@@ -40,10 +55,20 @@ export const ScanIdPage: React.FC = () => {
       {/* The Scanner */}
       <div className="w-full max-w-xl mb-8">
         {status === "APPROVED" ? (
-          <div className="bg-emerald-900/30 border-2 border-emerald-500/50 p-12 rounded-2xl text-emerald-100 flex flex-col items-center animate-in zoom-in">
+          <div className="bg-emerald-900/40 border-2 border-emerald-500/50 p-12 rounded-2xl text-emerald-100 flex flex-col items-center animate-in zoom-in shadow-2xl shadow-emerald-900/20">
             <ShieldCheck size={64} className="mb-4 text-emerald-400" />
-            <h2 className="text-2xl font-bold">Verification Successful</h2>
-            <p className="text-emerald-200/80">Welcome back, Alex.</p>
+            <h2 className="text-2xl font-bold mb-2">Verification Successful</h2>
+            <div className="bg-emerald-950 px-6 py-4 rounded-xl border border-emerald-800/50 text-center mt-2">
+              <p className="text-emerald-400 text-sm font-semibold uppercase tracking-wider mb-1">
+                Your Guest ID
+              </p>
+              <p className="text-4xl font-mono text-white tracking-widest">
+                {guestId}
+              </p>
+              <p className="text-emerald-300/60 text-xs mt-3 max-w-[200px] leading-relaxed">
+                Please note this down. You will need it for Quick Check-In.
+              </p>
+            </div>
           </div>
         ) : (
           <WebcamScanner onCapture={handleCapture} />
@@ -59,7 +84,7 @@ export const ScanIdPage: React.FC = () => {
 
       {/* Fallback for Demo (Director Safety Net) */}
       <button
-        onClick={() => emit("SCAN_COMPLETED")}
+        onClick={handleDemoSkip}
         className="mt-8 text-xs text-slate-600 hover:text-slate-400 underline transition-colors"
       >
         (Demo: Skip Camera)

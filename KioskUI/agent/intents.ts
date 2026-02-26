@@ -39,4 +39,5 @@ export const VOICE_COMMAND_MAP: Record<UiState, Partial<Record<string, Intent>>>
     KEY_DISPENSING: {},
     COMPLETE: {},
     ERROR: {},
+    CHECKIN_LOOKUP: {},
 };

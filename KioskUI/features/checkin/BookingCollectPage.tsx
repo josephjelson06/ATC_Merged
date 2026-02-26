@@ -33,10 +33,13 @@ const REQUIRED_SLOTS = [
   "guestName",
 ];
 
+const EMPTY_SLOTS: Record<string, any> = {};
+
 export const BookingCollectPage: React.FC = () => {
-  const { emit } = useUIState();
-  const { conversationHistory, bookingSlots, isProcessing, lastResponse } =
-    useBrain();
+  const { emit, data } = useUIState();
+  const { conversationHistory, isProcessing, lastResponse } = useBrain();
+  const bookingSlots = data.bookingSlots || EMPTY_SLOTS;
+
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll chat to bottom
@@ -226,13 +229,27 @@ export const BookingCollectPage: React.FC = () => {
           })}
         </div>
 
-        {/* Cancel button (touch fallback) */}
-        <button
-          onClick={() => emit("CANCEL_BOOKING")}
-          className="mt-6 w-full py-3 text-sm text-white/40 hover:text-white/80 border border-slate-700/50 hover:border-red-500/30 rounded-xl transition-all"
-        >
-          Cancel Booking
-        </button>
+        {/* Touch fallback controls */}
+        <div className="mt-6 flex flex-col gap-3">
+          <button
+            onClick={() => emit("CONFIRM_BOOKING")}
+            disabled={progress < 100}
+            className={`w-full py-4 rounded-xl font-medium transition-all ${
+              progress >= 100
+                ? "bg-blue-600 text-white hover:bg-blue-500 shadow-lg"
+                : "bg-slate-700/50 text-slate-500 cursor-not-allowed border border-slate-700"
+            }`}
+          >
+            Confirm Booking
+          </button>
+
+          <button
+            onClick={() => emit("CANCEL_BOOKING")}
+            className="w-full py-3 text-sm text-white/40 hover:text-white/80 border border-slate-700/50 hover:border-red-500/30 rounded-xl transition-all"
+          >
+            Cancel Booking
+          </button>
+        </div>
       </div>
     </div>
   );

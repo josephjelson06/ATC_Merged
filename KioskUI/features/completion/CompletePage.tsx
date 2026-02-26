@@ -37,10 +37,21 @@ export const CompletePage: React.FC = () => {
 
         <h2 className="text-4xl font-light text-white mb-4">You're All Set!</h2>
         <p className="text-xl text-slate-400 mb-2">
-          Room <span className="text-white font-bold">204</span> is ready for
-          you.
+          Room{" "}
+          <span className="text-white font-bold">
+            {data.assignedRoomNumber || "204"}
+          </span>{" "}
+          is ready for you.
         </p>
-        <p className="text-slate-500">Your key has been dispensed below.</p>
+        <div className="bg-slate-800 border border-slate-700 rounded-xl px-6 py-4 mt-4 mb-4">
+          <p className="text-slate-400 text-sm uppercase tracking-widest mb-1">
+            Your Key Code
+          </p>
+          <p className="text-3xl font-mono font-bold text-blue-400 tracking-wider flex items-center gap-2 justify-center">
+            {data.assignedKeyCode || "KEY-8294"}
+          </p>
+        </div>
+        <p className="text-slate-500">Your digital key has been registered.</p>
 
         <button
           onClick={() => emit("RESET")}

@@ -97,8 +97,13 @@ class VoiceRuntimeService {
             }
         });
 
+        let currentSpeechStartTime = 0;
+
         // Phase 9.4: Barge-in - User starts speaking, stop TTS instantly
         DeepgramClient.onSpeechStarted(() => {
+            currentSpeechStartTime = Date.now();
+            console.log("[VoiceRuntime] ⏱️ User started speaking...");
+
             if (TTSController.isSpeaking()) {
                 console.log("[VoiceRuntime] BARGE-IN: User started speaking, stopping TTS");
                 TTSController.bargeIn();
@@ -159,7 +164,8 @@ class VoiceRuntimeService {
                 this.consecutiveSilentTurns = 0;
                 this.metrics.turnCount++;
 
-                console.log(`[VoiceRuntime] Final: "${normalized}"`);
+                const sttLatency = currentSpeechStartTime > 0 ? Date.now() - currentSpeechStartTime : 0;
+                console.log(`[VoiceRuntime] ⏱️ STT Finalized in ${sttLatency}ms since speech start. Final transcript: "${normalized}"`);
                 this.emit({ type: "VOICE_TRANSCRIPT_READY", transcript: normalized });
             }
         });

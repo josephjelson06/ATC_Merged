@@ -13,7 +13,8 @@ export type UiState =
     | "PAYMENT"
     | "KEY_DISPENSING"
     | "COMPLETE"
-    | "ERROR";
+    | "ERROR"
+    | "CHECKIN_LOOKUP";
 
 export type InputMode = "VOICE" | "TOUCH";
 
@@ -31,6 +32,7 @@ export const STATE_INPUT_MODES: Record<UiState, InputMode[]> = {
     KEY_DISPENSING: [],
     COMPLETE: ["TOUCH"],
     ERROR: ["TOUCH"],
+    CHECKIN_LOOKUP: ["TOUCH"],
 };
 
 // Strict State Transition Table
@@ -56,7 +58,13 @@ export const TRANSITION_TABLE: Record<UiState, Partial<Record<Intent, UiState>>>
         CANCEL_REQUESTED: "WELCOME",
     },
     SCAN_ID: {
+        SCAN_COMPLETED: "CHECKIN_LOOKUP",
         BACK_REQUESTED: "MANUAL_MENU",
+        CANCEL_REQUESTED: "WELCOME",
+    },
+    CHECKIN_LOOKUP: {
+        CHECKIN_VERIFIED: "BOOKING_SUMMARY",
+        BACK_REQUESTED: "SCAN_ID",
         CANCEL_REQUESTED: "WELCOME",
     },
     ROOM_SELECT: {
@@ -87,16 +95,21 @@ export const TRANSITION_TABLE: Record<UiState, Partial<Record<Intent, UiState>>>
         RESET: "IDLE",
     },
     PAYMENT: {
+        CONFIRM_PAYMENT: "KEY_DISPENSING",
         BACK_REQUESTED: "ROOM_SELECT",
         CANCEL_REQUESTED: "WELCOME",
     },
-    KEY_DISPENSING: {},
+    KEY_DISPENSING: {
+        DISPENSE_COMPLETE: "COMPLETE",
+    },
     COMPLETE: {
         PROXIMITY_DETECTED: "WELCOME",
+        RESET: "IDLE",
     },
     ERROR: {
         CANCEL_REQUESTED: "WELCOME",
         TOUCH_SELECTED: "WELCOME",
         BACK_REQUESTED: "WELCOME",
+        RESET: "IDLE",
     },
 };

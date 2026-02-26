@@ -92,10 +92,13 @@ class TTSControllerService {
             utterance.pitch = 1.0;
             utterance.volume = 1.0;
 
+            const ttsReqStart = Date.now();
+
             utterance.onstart = () => {
+                const lag = Date.now() - ttsReqStart;
                 this.state = "SPEAKING";
                 this.isCancelling = false;
-                console.log(`[TTSController] Speaking: "${text.substring(0, 40)}..."`);
+                console.log(`[TTSController] ⏱️ TTS Audio Started in ${lag}ms: "${text.substring(0, 40)}..."`);
                 this.emit({ type: "TTS_STARTED", text });
             };
 

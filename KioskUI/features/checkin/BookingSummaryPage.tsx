@@ -5,13 +5,12 @@ import { motion } from "framer-motion";
 
 /**
  * BookingSummaryPage
- *
  * Renders during BOOKING_SUMMARY state.
  * Shows the complete booking for confirmation before payment.
  */
 export const BookingSummaryPage: React.FC = () => {
-  const { emit } = useUIState();
-  const { bookingSlots } = useBrain();
+  const { emit, data } = useUIState();
+  const bookingSlots = data.bookingSlots ?? {};
 
   const formatDate = (dateStr: string | null) => {
     if (!dateStr) return "—";

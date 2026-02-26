@@ -45,6 +45,7 @@ const VOICE_AUTHORITY_MATRIX: Record<UiState, boolean> = {
     KEY_DISPENSING: false,
     COMPLETE: false,
     ERROR: false,       // No voice during error states
+    CHECKIN_LOOKUP: false, // Security - no voice for check-in lookup
 };
 
 // Phase 8.6: Telemetry Event Types
@@ -413,6 +414,9 @@ class AgentAdapterService {
                 ? buildTenantApiUrl("chat/booking")
                 : buildTenantApiUrl("chat");
 
+            const reqStart = Date.now();
+            console.log(`[AgentAdapter] ⏱️ Sending prompt to LLM... ("${transcript}")`);
+
             // 1. Call LLM Brain with session ID for memory
             const response = await fetch(targetUrl, {
                 method: 'POST',
@@ -429,7 +433,8 @@ class AgentAdapterService {
             }
 
             const decision = await response.json();
-            console.log(`[AgentAdapter] LLM Decision:`, decision);
+            const reqEnd = Date.now();
+            console.log(`[AgentAdapter] ⏱️ LLM Decision received in ${reqEnd - reqStart}ms`, decision);
 
             // 2. Map Fuzzy Intent -> Strict Event
             const rawIntent = decision.intent;
@@ -545,6 +550,11 @@ class AgentAdapterService {
             merged.selectedRoom = payload.room;
         }
 
+        if (payload?.guestId) {
+            merged.guestId = payload.guestId;
+            console.log(`[AgentAdapter] Stored Guest ID: ${payload.guestId}`);
+        }
+
         if (Array.isArray(payload?.rooms)) {
             merged.rooms = payload.rooms;
         }
@@ -566,6 +576,12 @@ class AgentAdapterService {
             merged.selectedRoom = merged.rooms.find((r: any) => String(r.name || '').toLowerCase().includes(text))
                 || merged.rooms.find((r: any) => text.includes('deluxe') && String(r.name || '').toLowerCase().includes('deluxe'))
                 || null;
+        }
+
+        if (intent === 'CONFIRM_PAYMENT') {
+            merged.assignedRoomNumber = Math.floor(200 + Math.random() * 800).toString();
+            merged.assignedKeyCode = "KEY-" + Math.floor(1000 + Math.random() * 9000).toString();
+            console.log(`[AgentAdapter] Payment Confirmed. Assigned Room ${merged.assignedRoomNumber} with Key ${merged.assignedKeyCode}`);
         }
 
         const progressState = nextState || this.state;
@@ -678,7 +694,8 @@ class AgentAdapterService {
             "ROOM_SELECTED", "CONFIRM_PAYMENT",
             "BACK_REQUESTED", "RESET", "TOUCH_SELECTED",
             "CANCEL_REQUESTED", "PROXIMITY_DETECTED",
-            "SCAN_ID_SELECTED", "PAYMENT_SELECTED"
+            "SCAN_ID_SELECTED", "PAYMENT_SELECTED",
+            "CHECKIN_VERIFIED"
         ];
 
         if (INTERRUPT_INTENTS.includes(intent)) {

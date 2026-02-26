@@ -10,10 +10,12 @@ import { UiState } from "../../agent/index";
 import { IdlePage } from "../welcome/IdlePage";
 import { WelcomePage } from "../welcome/WelcomePage";
 import { ScanIdPage } from "../checkin/ScanIdPage";
+import { CheckInLookupPage } from "../checkin/CheckInLookupPage";
 import { RoomSelectPage } from "../checkin/RoomSelectPage";
 import { BookingCollectPage } from "../checkin/BookingCollectPage";
 import { BookingSummaryPage } from "../checkin/BookingSummaryPage";
 import { PaymentPage } from "../checkin/PaymentPage";
+import { KeyDispensingPage } from "../checkin/KeyDispensingPage";
 import { CompletePage } from "../completion/CompletePage";
 import { LauncherPage } from "../launcher/LauncherPage";
 
@@ -31,37 +33,20 @@ const App: React.FC = () => {
   const [data, setData] = useState<any>({});
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [currentPath, setCurrentPath] = useState<string>(
-    () => window.location.pathname || "/",
-  );
-
-  const navigateTo = (path: string, replace = false) => {
-    if (window.location.pathname !== path) {
-      if (replace) {
-        window.history.replaceState({}, "", path);
-      } else {
-        window.history.pushState({}, "", path);
-      }
-    }
-    setCurrentPath(path);
-  };
-
-  useEffect(() => {
-    const onPopState = () => setCurrentPath(window.location.pathname || "/");
-    window.addEventListener("popstate", onPopState);
-    return () => window.removeEventListener("popstate", onPopState);
-  }, []);
+  const [tenantSelected, setTenantSelected] = useState<boolean>(false);
 
   // 1. CONNECT TO AGENT BRAIN
   useEffect(() => {
     // Subscribe to the Agent Adapter
-    const unsubscribe = AgentAdapter.subscribe((newState) => {
+    const unsubscribe = AgentAdapter.subscribe((newState, newData) => {
       console.log(
         `[APP RENDERER] Received State Update from Agent: ${newState}`,
       );
       setState(newState);
       // In a real app, 'data' would come from a View Model or State/Store mapped to the UiState.
-      // For now, we keep data empty or static as we focus on Navigation Authority.
+      if (newData) {
+        setData(newData);
+      }
       setLoading(false);
     });
 
@@ -96,22 +81,11 @@ const App: React.FC = () => {
   };
 
   const effectiveState = forcedState ?? state;
-  const hasTenant = Boolean(getTenantSlug().trim());
-
-  useEffect(() => {
-    if (!hasTenant && currentPath !== "/") {
-      navigateTo("/", true);
-      return;
-    }
-
-    if (hasTenant && currentPath === "/") {
-      navigateTo("/app", true);
-    }
-  }, [currentPath, hasTenant]);
+  const hasTenant = Boolean(getTenantSlug().trim()) || tenantSelected;
 
   const handleTenantSelected = () => {
     AgentAdapter.dispatch("RESET" as any);
-    navigateTo("/app");
+    setTenantSelected(true);
   };
 
   // 3. DUMB ROUTER (State -> Component)
@@ -131,6 +105,8 @@ const App: React.FC = () => {
 
       case "SCAN_ID":
         return <ScanIdPage />;
+      case "CHECKIN_LOOKUP":
+        return <CheckInLookupPage />;
       case "ROOM_SELECT":
         return <RoomSelectPage />;
       case "BOOKING_COLLECT":
@@ -141,12 +117,7 @@ const App: React.FC = () => {
         return <PaymentPage />;
 
       case "KEY_DISPENSING":
-        return (
-          <div className="h-screen w-full flex flex-col items-center justify-center bg-slate-900 text-white">
-            <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500 mb-4"></div>
-            <h2 className="text-2xl font-light">Dispensing Key Card...</h2>
-          </div>
-        );
+        return <KeyDispensingPage />;
 
       // Complete Page
       case "COMPLETE":
